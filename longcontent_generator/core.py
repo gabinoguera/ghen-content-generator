@@ -866,6 +866,240 @@ SUGERENCIAS DE ARTÍCULOS:
         return f"Error al generar sugerencias: {str(e)}"
 
 
+def improve_article_based_on_qa(article_content: str, qa_report: str) -> str:
+    """
+    Mejora el artículo aplicando las observaciones del QA de forma quirúrgica.
+    Solo modifica las áreas específicas identificadas por el análisis QA.
+    
+    Args:
+        article_content: Contenido actual del artículo
+        qa_report: Reporte QA con observaciones específicas
+    
+    Returns:
+        str: Artículo mejorado con las correcciones aplicadas
+    """
+    if not article_content or not qa_report:
+        return article_content
+    
+    print("🔧 Aplicando mejoras basadas en análisis QA...")
+    
+    # Extraer observaciones específicas del QA
+    improvements_needed = extract_qa_improvements(qa_report)
+    
+    if not improvements_needed:
+        print("✅ No se detectaron mejoras necesarias")
+        return article_content
+    
+    print(f"📋 Mejoras detectadas: {len(improvements_needed)}")
+    for improvement in improvements_needed:
+        description = improvement.get('description', improvement.get('section', improvement.get('keyword', 'Sin descripción')))
+        print(f"   • {improvement['type']}: {description}")
+    
+    # Aplicar mejoras de forma quirúrgica
+    improved_content = apply_qa_improvements(article_content, improvements_needed)
+    
+    # Guardar versión mejorada
+    output_file = "articulo_mejorado_qa.md"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(improved_content)
+    
+    print(f"✅ Artículo mejorado guardado en: {output_file}")
+    return improved_content
+
+
+def extract_qa_improvements(qa_report: str) -> List[Dict[str, str]]:
+    """
+    Extrae las mejoras específicas del reporte QA.
+    
+    Args:
+        qa_report: Reporte QA completo
+    
+    Returns:
+        List[Dict]: Lista de mejoras a aplicar
+    """
+    improvements = []
+    
+    import re
+    
+    # Buscar keywords faltantes (❌) - patrón específico para el formato del QA
+    missing_pattern = r'\*\s*\*\*([^*]+)\*\*:\s*❌\s*([^\n]+)'
+    missing_matches = re.findall(missing_pattern, qa_report)
+    
+    for keyword, description in missing_matches:
+        keyword = keyword.strip()
+        description = description.strip()
+        
+        # Filtrar matches válidos
+        if len(keyword) > 3 and not keyword.isdigit():
+            improvements.append({
+                'type': 'missing_keyword',
+                'keyword': keyword,
+                'description': description,
+                'action': 'integrate_naturally'
+            })
+    
+    # Buscar keywords forzadas (⚠️) - patrón específico para el formato del QA
+    forced_pattern = r'\*\s*\*\*([^*]+)\*\*:\s*⚠️\s*([^\n]+)'
+    forced_matches = re.findall(forced_pattern, qa_report)
+    
+    for keyword, description in forced_matches:
+        keyword = keyword.strip()
+        description = description.strip()
+        
+        # Filtrar matches válidos
+        if len(keyword) > 3 and not keyword.isdigit():
+            improvements.append({
+                'type': 'forced_keyword',
+                'keyword': keyword,
+                'description': description,
+                'action': 'smooth_integration'
+            })
+    
+    # Buscar secciones a expandir
+    expand_sections = re.findall(r'expandir[^:]*:\s*([^\n]+)', qa_report, re.IGNORECASE)
+    for section in expand_sections:
+        improvements.append({
+            'type': 'expand_section',
+            'section': section.strip(),
+            'action': 'add_content'
+        })
+    
+    # Limitar a las mejoras más relevantes para evitar spam
+    return improvements[:5]
+
+
+def apply_qa_improvements(article_content: str, improvements: List[Dict[str, str]]) -> str:
+    """
+    Aplica las mejoras específicas al contenido del artículo.
+    
+    Args:
+        article_content: Contenido original
+        improvements: Lista de mejoras a aplicar
+    
+    Returns:
+        str: Contenido mejorado
+    """
+    improved_content = article_content
+    
+    for improvement in improvements:
+        if improvement['type'] == 'missing_keyword':
+            improved_content = integrate_missing_keyword(
+                improved_content, 
+                improvement['keyword'], 
+                improvement['description']
+            )
+        elif improvement['type'] == 'forced_keyword':
+            improved_content = smooth_keyword_integration(
+                improved_content, 
+                improvement['keyword']
+            )
+        elif improvement['type'] == 'expand_section':
+            improved_content = expand_section_content(
+                improved_content, 
+                improvement['section']
+            )
+    
+    return improved_content
+
+
+def integrate_missing_keyword(content: str, keyword: str, description: str) -> str:
+    """
+    Integra una keyword faltante de forma natural en el contenido.
+    """
+    print(f"🔑 Integrando keyword faltante: '{keyword}'")
+    
+    # Crear prompt para integración natural
+    prompt = f"""Integra la siguiente keyword de forma natural en el contenido existente.
+
+**KEYWORD A INTEGRAR:** {keyword}
+**CONTEXTO:** {description}
+**CONTENIDO ACTUAL:**
+{content[:8000]}
+
+**INSTRUCCIONES:**
+- Integra la keyword de forma natural y contextual
+- NO añadas párrafos completos nuevos
+- Modifica solo las frases donde sea apropiado
+- Mantén la coherencia del texto original
+- Responde SOLO con el contenido modificado
+
+CONTENIDO MEJORADO:"""
+    
+    try:
+        response = model.generate_content(prompt)
+        if hasattr(response, 'text'):
+            return clean_conversational_response(response.text)
+        else:
+            return content
+    except Exception as e:
+        print(f"⚠️  Error integrando keyword '{keyword}': {str(e)}")
+        return content
+
+
+def smooth_keyword_integration(content: str, keyword: str) -> str:
+    """
+    Suaviza la integración de una keyword que suena forzada.
+    """
+    print(f"🔧 Suavizando integración de keyword: '{keyword}'")
+    
+    prompt = f"""Mejora la integración de la keyword que suena forzada en el contenido.
+
+**KEYWORD PROBLEMÁTICA:** {keyword}
+**CONTENIDO ACTUAL:**
+{content[:8000]}
+
+**INSTRUCCIONES:**
+- Haz que la keyword suene más natural
+- Mejora el contexto alrededor de la keyword
+- NO elimines la keyword, solo mejora su integración
+- Mantén el significado original
+- Responde SOLO con el contenido mejorado
+
+CONTENIDO MEJORADO:"""
+    
+    try:
+        response = model.generate_content(prompt)
+        if hasattr(response, 'text'):
+            return clean_conversational_response(response.text)
+        else:
+            return content
+    except Exception as e:
+        print(f"⚠️  Error suavizando keyword '{keyword}': {str(e)}")
+        return content
+
+
+def expand_section_content(content: str, section: str) -> str:
+    """
+    Expande una sección específica del contenido.
+    """
+    print(f"📝 Expandiendo sección: '{section}'")
+    
+    prompt = f"""Expande la sección específica del contenido añadiendo valor.
+
+**SECCIÓN A EXPANDIR:** {section}
+**CONTENIDO ACTUAL:**
+{content[:8000]}
+
+**INSTRUCCIONES:**
+- Añade contenido valioso a la sección específica
+- Mantén la coherencia con el resto del artículo
+- NO repitas información existente
+- Añade 2-3 párrafos relevantes
+- Responde SOLO con el contenido expandido
+
+CONTENIDO EXPANDIDO:"""
+    
+    try:
+        response = model.generate_content(prompt)
+        if hasattr(response, 'text'):
+            return clean_conversational_response(response.text)
+        else:
+            return content
+    except Exception as e:
+        print(f"⚠️  Error expandiendo sección '{section}': {str(e)}")
+        return content
+
+
 def load_seo_keywords_from_analysis(csv_path):
     """
     Carga keywords desde SEO_Analysis_Results.csv priorizando análisis de competencia.
@@ -1037,3 +1271,275 @@ def extract_keywords_from_search_titles(search_results_df):
     unique_keywords = list(set([kw for kw in keywords if len(kw) > 3]))
     
     return unique_keywords[:20]  # Limitar a 20 keywords
+
+
+# ============================================================================
+# NUEVAS FUNCIONES PARA LEO CONTENT GENERATION
+# ============================================================================
+
+def load_leo_context():
+    """
+    Carga los archivos de contexto de LEO (personalidad, proyecto, audiencia).
+    
+    Returns:
+        dict: Diccionario con las claves 'personality', 'project', 'audience'
+    """
+    context = {
+        'personality': '',
+        'project': '',
+        'audience': ''
+    }
+    
+    try:
+        # Cargar personalidad
+        with open('LEO/personalidad.md', 'r', encoding='utf-8') as f:
+            context['personality'] = f.read()
+        print("✅ Personalidad de LEO cargada")
+    except FileNotFoundError:
+        print("⚠️  Archivo de personalidad no encontrado")
+    
+    try:
+        # Cargar definición del proyecto
+        with open('.github/project-definitions.md', 'r', encoding='utf-8') as f:
+            context['project'] = f.read()
+        print("✅ Definición del proyecto cargada")
+    except FileNotFoundError:
+        print("⚠️  Archivo de definición del proyecto no encontrado")
+    
+    try:
+        # Cargar perfil de audiencia
+        with open('.github/perfilado_cliente.md', 'r', encoding='utf-8') as f:
+            context['audience'] = f.read()
+        print("✅ Perfil de audiencia cargado")
+    except FileNotFoundError:
+        print("⚠️  Archivo de perfil de audiencia no encontrado")
+    
+    return context
+
+
+def build_system_prompt(leo_context):
+    """
+    Construye el system prompt para Gemini con el contexto de LEO.
+    
+    Args:
+        leo_context (dict): Diccionario con el contexto de LEO
+    
+    Returns:
+        str: System prompt completo
+    """
+    system_prompt = f"""Eres LEO, el asistente de contenidos de Archivo Final. 
+
+# TU PERSONALIDAD Y FORMA DE COMUNICAR
+
+{leo_context['personality']}
+
+# CONTEXTO DEL PROYECTO
+
+{leo_context['project']}
+
+# AUDIENCIA OBJETIVO
+
+{leo_context['audience']}
+
+# TU ROL
+
+Como LEO, tu función es crear contenido editorial de alta calidad que:
+- Eduque y acompañe a escritores en temas de escritura, edición y publicación
+- Sea empático y humano, cercano al escritor que busca orientación
+- Sea profesional, con lenguaje editorial preciso
+- No sea tecnocrático: la IA se menciona como herramienta, no como protagonista
+- Inspire y genere confianza en el proceso creativo
+
+Recuerda siempre los 5 pilares de tu personalidad: Objetivo y Analítico, Empático y Respetuoso, Visionario y Estratégico, Narrador de Datos, y Curador de Conocimiento.
+"""
+    
+    return system_prompt
+
+
+def suggest_keyword_from_topic(topic, leo_context=None):
+    """
+    Sugiere una keyword semilla óptima a partir de un tópico.
+    
+    Args:
+        topic (str): El tópico general del que se quiere escribir
+        leo_context (dict, optional): Contexto de LEO
+    
+    Returns:
+        str: Keyword sugerida
+    """
+    if not model:
+        print("❌ Modelo Gemini no configurado")
+        return None
+    
+    # Cargar contexto si no se proporciona
+    if leo_context is None:
+        leo_context = load_leo_context()
+    
+    system_prompt = build_system_prompt(leo_context)
+    
+    prompt = f"""Basándote en el siguiente tópico, sugiere UNA keyword semilla ideal para crear contenido SEO optimizado.
+
+Tópico: {topic}
+
+La keyword debe:
+- Tener volumen de búsqueda potencial
+- Ser específica y relevante para nuestra audiencia (escritores y autores)
+- Ser natural y conversacional
+- Estar relacionada con escritura, edición, publicación o el mundo editorial
+
+Responde SOLAMENTE con la keyword sugerida, sin explicaciones adicionales."""
+
+    try:
+        # Construir el prompt completo
+        full_prompt = f"{system_prompt}\n\n{prompt}"
+        
+        response = model.generate_content(full_prompt)
+        keyword = response.text.strip()
+        
+        print(f"✅ Keyword sugerida para '{topic}': {keyword}")
+        return keyword
+        
+    except Exception as e:
+        print(f"❌ Error al sugerir keyword: {str(e)}")
+        return None
+
+
+def extract_and_summarize_url(url, leo_context=None):
+    """
+    Extrae el contenido de una URL y genera un resumen con puntos clave.
+    
+    Args:
+        url (str): URL del newsletter o artículo
+        leo_context (dict, optional): Contexto de LEO
+    
+    Returns:
+        dict: {'summary': str, 'key_points': list, 'suggested_topics': list}
+    """
+    if not model:
+        print("❌ Modelo Gemini no configurado")
+        return None
+    
+    # Cargar contexto si no se proporciona
+    if leo_context is None:
+        leo_context = load_leo_context()
+    
+    print(f"🔍 Extrayendo contenido de: {url}")
+    
+    # Extraer contenido
+    content = scrape_article(url)
+    
+    if not content or len(content) < 100:
+        print("❌ No se pudo extraer contenido suficiente de la URL")
+        return None
+    
+    system_prompt = build_system_prompt(leo_context)
+    
+    prompt = f"""Analiza el siguiente contenido de un newsletter o artículo y:
+
+1. Genera un resumen ejecutivo (máximo 200 palabras)
+2. Extrae 5 puntos clave o insights principales
+3. Sugiere 3 temas de artículos que podríamos crear basados en este contenido
+
+Contenido:
+{content[:8000]}
+
+Responde en formato:
+
+## Resumen
+[tu resumen aquí]
+
+## Puntos Clave
+1. [punto 1]
+2. [punto 2]
+3. [punto 3]
+4. [punto 4]
+5. [punto 5]
+
+## Temas Sugeridos
+1. [tema 1]
+2. [tema 2]
+3. [tema 3]
+"""
+
+    try:
+        full_prompt = f"{system_prompt}\n\n{prompt}"
+        response = model.generate_content(full_prompt)
+        
+        analysis = response.text
+        
+        print("✅ Análisis del contenido completado")
+        
+        # Parsear la respuesta
+        result = {
+            'raw_analysis': analysis,
+            'original_content': content[:2000],  # Guardar parte del contenido original
+            'url': url
+        }
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ Error al analizar contenido: {str(e)}")
+        return None
+
+
+def generate_article_with_context(keyword, context_sources, leo_context=None):
+    """
+    Genera un artículo usando keyword y fuentes de contexto adicionales.
+    
+    Args:
+        keyword (str): Keyword principal
+        context_sources (list): Lista de strings con contexto adicional
+        leo_context (dict, optional): Contexto de LEO
+    
+    Returns:
+        str: Artículo generado
+    """
+    if not model:
+        print("❌ Modelo Gemini no configurado")
+        return None
+    
+    # Cargar contexto si no se proporciona
+    if leo_context is None:
+        leo_context = load_leo_context()
+    
+    system_prompt = build_system_prompt(leo_context)
+    
+    # Construir el contexto combinado
+    combined_context = "\n\n---\n\n".join(context_sources)
+    
+    prompt = f"""Crea un artículo completo y de alta calidad sobre: "{keyword}"
+
+# Contexto de Investigación
+
+{combined_context[:10000]}
+
+# Instrucciones
+
+El artículo debe:
+- Ser original y estar escrito en español
+- Tener entre 1500-2000 palabras
+- Incluir un título atractivo y SEO-optimizado
+- Tener una estructura clara con subtítulos (H2, H3)
+- Ser educativo y valioso para escritores y autores
+- Incluir ejemplos prácticos cuando sea relevante
+- Mantener un tono empático y profesional
+- Terminar con una conclusión clara y un llamado a la acción sutil
+
+Formato en Markdown."""
+
+    try:
+        full_prompt = f"{system_prompt}\n\n{prompt}"
+        
+        print("🎨 Generando artículo con contexto LEO...")
+        response = model.generate_content(full_prompt)
+        
+        article = response.text
+        
+        print(f"✅ Artículo generado ({len(article)} caracteres)")
+        return article
+        
+    except Exception as e:
+        print(f"❌ Error al generar artículo: {str(e)}")
+        return None
+

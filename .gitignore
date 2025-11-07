@@ -1,0 +1,42 @@
+# Environment variables
+.env
+
+# Credentials
+archivo-final-1725284197421-0614f1080f18.json
+
+# Temporary files
+qa.json
+articulo_completo.md
+articulo_mejorado_qa.md
+esquema_articulo.md
+qa_report.md
+articulos_sugeridos.md
+test_articulo.md
+analisis_newsletter.md
+articulo_leo_generado.md
+
+# CSV outputs (generated)
+keywords_scraped.csv
+search_results.csv
+scraped_articles.csv
+SEO_Analysis_Results.csv
+google_search_results.csv
+
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# macOS
+.DS_Store
+
+# Backup folder
+bk/
+
+# GitHub context (keep important docs, exclude summary)
+.github/context-summary.md
+
