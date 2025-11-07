@@ -899,7 +899,7 @@ def improve_article_based_on_qa(article_content: str, qa_report: str) -> str:
     improved_content = apply_qa_improvements(article_content, improvements_needed)
     
     # Guardar versión mejorada
-    output_file = "articulo_mejorado_qa.md"
+    output_file = "outputs/articulo_mejorado_qa.md"
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(improved_content)
     

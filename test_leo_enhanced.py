@@ -116,9 +116,9 @@ def test_generate_article(leo_context):
         print("-" * 70)
         
         # Guardar artículo de prueba
-        with open('test_articulo.md', 'w', encoding='utf-8') as f:
+        with open('outputs/test_articulo.md', 'w', encoding='utf-8') as f:
             f.write(article)
-        print("\n✓ Artículo guardado en 'test_articulo.md'")
+        print("\n✓ Artículo guardado en 'outputs/test_articulo.md'")
         
         return article
     else:
@@ -131,6 +131,9 @@ def main():
     print("\n" + "="*70)
     print("🧪 INICIANDO PRUEBAS DE LEO ENHANCED")
     print("="*70)
+    
+    # Crear directorio outputs si no existe
+    os.makedirs('outputs', exist_ok=True)
     
     try:
         # Test 1: Cargar contexto

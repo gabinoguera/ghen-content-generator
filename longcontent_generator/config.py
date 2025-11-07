@@ -25,13 +25,14 @@ CONFIG = {
     # Output Configuration
     "output_language": "spanish",
     "output_encoding": "UTF-8",
+    "output_dir": "outputs",
     
     # Files
-    "output_analysis_csv": "SEO_Analysis_Results.csv",
-    "output_outline_md": "esquema_articulo.md",
-    "output_article_md": "articulo_completo.md",
-    "output_qa_report": "qa_report.md",
-    "output_suggestions": "articulos_sugeridos.md",
+    "output_analysis_csv": "outputs/SEO_Analysis_Results.csv",
+    "output_outline_md": "outputs/esquema_articulo.md",
+    "output_article_md": "outputs/articulo_completo.md",
+    "output_qa_report": "outputs/qa_report.md",
+    "output_suggestions": "outputs/articulos_sugeridos.md",
     
     # API delay
     "api_delay": 2

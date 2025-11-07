@@ -20,20 +20,20 @@ def test_qa_improvement():
     
     # Cargar el artículo actual
     try:
-        with open("articulo_completo.md", "r", encoding="utf-8") as f:
+        with open("outputs/articulo_completo.md", "r", encoding="utf-8") as f:
             article_content = f.read()
         print("✅ Artículo cargado correctamente")
     except FileNotFoundError:
-        print("❌ No se encontró articulo_completo.md")
+        print("❌ No se encontró outputs/articulo_completo.md")
         return
     
     # Cargar el reporte QA
     try:
-        with open("qa_report.md", "r", encoding="utf-8") as f:
+        with open("outputs/qa_report.md", "r", encoding="utf-8") as f:
             qa_report = f.read()
         print("✅ Reporte QA cargado correctamente")
     except FileNotFoundError:
-        print("❌ No se encontró qa_report.md")
+        print("❌ No se encontró outputs/qa_report.md")
         return
     
     print(f"\n📊 Estadísticas:")

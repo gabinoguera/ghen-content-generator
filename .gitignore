@@ -4,23 +4,10 @@
 # Credentials
 archivo-final-1725284197421-0614f1080f18.json
 
-# Temporary files
-qa.json
-articulo_completo.md
-articulo_mejorado_qa.md
-esquema_articulo.md
-qa_report.md
-articulos_sugeridos.md
-test_articulo.md
-analisis_newsletter.md
-articulo_leo_generado.md
-
-# CSV outputs (generated)
-keywords_scraped.csv
-search_results.csv
-scraped_articles.csv
-SEO_Analysis_Results.csv
-google_search_results.csv
+# Outputs directory (generated files)
+outputs/*
+!outputs/.gitkeep
+!outputs/README.md
 
 # Virtual environment
 .venv/
