@@ -86,7 +86,7 @@ def google_custom_search(query, country=None, max_results=10):
 
 def scrape_article(url):
     """
-    Extract text content from a URL using newspaper library with BeautifulSoup fallback.
+    Extract text content from a URL using requests + BeautifulSoup with newspaper fallback.
     
     Args:
         url (str): URL to scrape
@@ -94,22 +94,67 @@ def scrape_article(url):
     Returns:
         str: Extracted text content
     """
+    # Headers para evitar bloqueos anti-scraping
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+    }
+    
     try:
-        # Try with newspaper first
+        # Método 1: requests + BeautifulSoup (mejor para newsletters)
+        response = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Eliminar scripts, estilos, y elementos no deseados
+        for element in soup(['script', 'style', 'nav', 'footer', 'header', 'aside', 'iframe']):
+            element.decompose()
+        
+        # Extraer texto de párrafos, divs, artículos
+        text_elements = []
+        
+        # Priorizar contenido de artículos y main
+        for tag in ['article', 'main', '[role="main"]']:
+            content = soup.select(tag)
+            if content:
+                for elem in content:
+                    text_elements.extend([p.get_text(strip=True) for p in elem.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'li'])])
+                break
+        
+        # Si no encuentra article/main, buscar todo
+        if not text_elements:
+            text_elements = [p.get_text(strip=True) for p in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'li', 'div'])]
+        
+        # Filtrar elementos vacíos y juntar
+        article_text = '\n'.join([text for text in text_elements if text and len(text) > 20])
+        
+        if article_text and len(article_text) > 100:
+            return article_text
+        
+        # Método 2: newspaper3k como fallback
+        print(f"   ⚠️  Poco contenido con BeautifulSoup, intentando con newspaper3k...")
         article = Article(url)
         article.download()
         article.parse()
         
-        if article.text:
+        if article.text and len(article.text) > 100:
             return article.text
         
-        # Fallback to BeautifulSoup
-        page = requests.get(url, timeout=10)
-        soup = BeautifulSoup(page.content, 'html.parser')
-        article_text = ' '.join([p.get_text() for p in soup.find_all(['p', 'div'])])
-        
-        return article_text
+        # Si newspaper tampoco funciona, devolver lo que tengamos
+        return article_text if article_text else ""
     
+    except requests.exceptions.Timeout:
+        print(f"❌ Timeout al acceder a {url}")
+        return ""
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error de conexión en {url}: {str(e)}")
+        return ""
     except Exception as e:
         print(f"❌ Error al scrapear {url}: {str(e)}")
         return ""
@@ -1413,7 +1458,7 @@ def extract_and_summarize_url(url, leo_context=None):
         leo_context (dict, optional): Contexto de LEO
     
     Returns:
-        dict: {'summary': str, 'key_points': list, 'suggested_topics': list}
+        dict: {'summary': str, 'key_points': list, 'suggested_topics': list, 'raw_analysis': str, 'original_content': str}
     """
     if not model:
         print("❌ Modelo Gemini no configurado")
@@ -1431,6 +1476,8 @@ def extract_and_summarize_url(url, leo_context=None):
     if not content or len(content) < 100:
         print("❌ No se pudo extraer contenido suficiente de la URL")
         return None
+    
+    print(f"✅ Contenido extraído: {len(content)} caracteres")
     
     system_prompt = build_system_prompt(leo_context)
     
@@ -1469,10 +1516,10 @@ Responde en formato:
         
         print("✅ Análisis del contenido completado")
         
-        # Parsear la respuesta
+        # Parsear la respuesta y guardar TODO el contenido original
         result = {
             'raw_analysis': analysis,
-            'original_content': content[:2000],  # Guardar parte del contenido original
+            'original_content': content,  # CAMBIO: Guardar TODO el contenido, no solo 2000 chars
             'url': url
         }
         
@@ -1508,7 +1555,38 @@ def generate_article_with_context(keyword, context_sources, leo_context=None):
     # Construir el contexto combinado
     combined_context = "\n\n---\n\n".join(context_sources)
     
-    prompt = f"""Crea un artículo completo y de alta calidad sobre: "{keyword}"
+    # Detectar si es un artículo de actualidad/tendencias (basado en contexto de newsletter)
+    is_newsletter_based = any('NEWSLETTER' in source or 'ANÁLISIS DEL NEWSLETTER' in source for source in context_sources)
+    
+    if is_newsletter_based:
+        # Prompt especializado para artículos de Actualidad y Tendencias
+        prompt = f"""Crea un artículo de "Actualidad y Tendencias" sobre: "{keyword}"
+
+# Contexto: Newsletter y Análisis
+
+{combined_context[:12000]}
+
+# Instrucciones Específicas
+
+Este es un artículo de **actualidad editorial y tendencias en escritura**, basado en el contenido de un newsletter especializado.
+
+El artículo debe:
+- **Sintetizar las principales tendencias** mencionadas en el newsletter
+- **Conectar los temas** con la realidad de escritores y autores hoy
+- Tener entre 1500-2000 palabras
+- Incluir un título atractivo tipo: "Lo que todo escritor debe saber sobre [tema]"
+- Usar subtítulos claros (H2, H3) que organicen las tendencias
+- **Mencionar ejemplos o casos concretos** del newsletter cuando sea relevante
+- Mantener el tono de LEO: empático, profesional, estratégico
+- Incluir insights prácticos que los escritores puedan aplicar
+- Terminar con una reflexión sobre el futuro y un CTA sutil hacia Archivo Final
+
+**Importante:** No copies textualmente el newsletter. Interpreta, sintetiza y añade valor editorial.
+
+Formato en Markdown."""
+    else:
+        # Prompt estándar para artículos basados en investigación
+        prompt = f"""Crea un artículo completo y de alta calidad sobre: "{keyword}"
 
 # Contexto de Investigación
 
@@ -1531,7 +1609,8 @@ Formato en Markdown."""
     try:
         full_prompt = f"{system_prompt}\n\n{prompt}"
         
-        print("🎨 Generando artículo con contexto LEO...")
+        article_type = "actualidad" if is_newsletter_based else "investigación"
+        print(f"🎨 Generando artículo de {article_type} con contexto LEO...")
         response = model.generate_content(full_prompt)
         
         article = response.text
