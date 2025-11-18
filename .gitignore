@@ -27,3 +27,6 @@ bk/
 # GitHub context (keep important docs, exclude summary)
 .github/context-summary.md
 
+
+client_secret_385514742115-gq9sltrud83gdn2fsq4n7kiihbgqur8e.apps.googleusercontent.com.json
+token.pickle

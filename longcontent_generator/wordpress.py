@@ -31,7 +31,7 @@ def publish_article_from_markdown_cleaned(article_title, markdown_file_path="art
         return False
     
     # WordPress API endpoint
-    url = 'https://archivofinal.com/wp-json/wp/v2/posts'
+    url = 'https://ghendigital.com/wp-json/wp/v2/posts'
     headers = {
         'Authorization': 'Basic ' + base64.b64encode(f"{login}:{password}".encode()).decode(),
         'Content-Type': 'application/json'

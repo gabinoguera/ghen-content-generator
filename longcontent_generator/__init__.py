@@ -19,7 +19,11 @@ from .core import (
     load_seo_keywords_from_analysis,
     extract_keywords_from_seo_analysis,
     extract_questions_from_seo_analysis,
-    extract_keywords_from_search_titles
+    extract_keywords_from_search_titles,
+    extract_newsletter_from_gmail,
+    list_gmail_newsletters,
+    add_source_links_to_article,
+    load_ghen_context
 )
 
 from .scraper import (
@@ -59,6 +63,10 @@ __all__ = [
     'extract_keywords_from_seo_analysis',
     'extract_questions_from_seo_analysis',
     'extract_keywords_from_search_titles',
+    'extract_newsletter_from_gmail',
+    'list_gmail_newsletters',
+    'add_source_links_to_article',
+    'load_ghen_context',
     
     # Scraper
     'GoogleKeywordScraper',
@@ -79,7 +87,7 @@ __all__ = [
     'model'
 ]
 
-print("✅ LongContent Generator v1.0.0 cargado correctamente")
+print("✅ LongContent Generator v2.1.0 cargado correctamente")
 print("📋 Funciones principales disponibles:")
 print("   • google_custom_search() - Búsqueda en Google")
 print("   • scrape_articles_batch() - Scraping de artículos")
@@ -87,3 +95,6 @@ print("   • analyze_articles_batch() - Análisis SEO con Gemini")
 print("   • generate_article_from_outline() - Generación de contenido")
 print("   • qa_article_coverage() - Análisis de calidad")
 print("   • publish_article_from_markdown_cleaned() - Publicación WordPress")
+print("   • extract_newsletter_from_gmail() - 🆕 Leer newsletters desde Gmail")
+print("   • list_gmail_newsletters() - 🆕 Listar newsletters disponibles")
+print("   • add_source_links_to_article() - 🆕 Referencias automáticas")

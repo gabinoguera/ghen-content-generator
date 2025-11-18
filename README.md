@@ -1,6 +1,6 @@
-# 🚀 Content Generator - Sistema LEO
+# 🚀 Content Generator - Sistema GHEN Digital
 
-Sistema inteligente de generación de contenido long-form con personalidad LEO (Lector Editorial Online) para **Archivo Final**.
+Sistema inteligente de generación de contenido long-form técnico con personalidad definida para **GHEN Digital**.
 
 ![Version](https://img.shields.io/badge/version-2.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10+-green)
@@ -10,11 +10,11 @@ Sistema inteligente de generación de contenido long-form con personalidad LEO (
 
 ## 📋 Descripción
 
-Content Generator es un sistema modular de generación de contenido SEO-optimizado que utiliza **Google Gemini AI** con una personalidad editorial definida (LEO). Ofrece tres flujos de trabajo diferentes para crear artículos de alta calidad dirigidos a escritores y autores.
+Content Generator es un sistema modular de generación de contenido SEO-optimizado que utiliza **Google Gemini AI** para crear artículos técnicos de alta calidad dirigidos a desarrolladores, CTOs, consultores de IA y profesionales tech.
 
 ### ✨ Características Principales
 
-- **🤖 Personalidad LEO**: 5 pilares de personalidad editorial consistente
+- **🤖 Personalidad Técnica GHEN**: Contenido práctico basado en experiencia real (código, arquitecturas, proyectos)
 - **🎯 Tres Métodos de Generación**:
   - Tópico → Keyword → Artículo
   - Keyword → Investigación → Artículo  
@@ -22,7 +22,7 @@ Content Generator es un sistema modular de generación de contenido SEO-optimiza
 - **🔍 Research Automático**: Scraping de Google SERP y análisis de competencia
 - **📊 Análisis SEO**: Evaluación automática con Gemini
 - **✅ Quality Assurance**: Sistema de mejora post-QA
-- **📝 WordPress Integration**: Publicación automática
+- **📝 WordPress Integration**: Publicación automática en ghendigital.com
 
 ---
 
@@ -31,13 +31,10 @@ Content Generator es un sistema modular de generación de contenido SEO-optimiza
 ```
 content-generator/
 ├── .github/                      # Documentación y configuración
-│   ├── copilot-instructions.md  # Guía para AI coding agents
-│   ├── IMPLEMENTATION_SUMMARY.md # Guía de implementación
-│   ├── project-definitions.md    # Contexto Archivo Final
-│   └── perfilado_cliente.md     # Perfil audiencia
+│   └── copilot-instructions.md  # Guía para AI coding agents
 │
-├── LEO/                         # Personalidad de LEO
-│   └── personalidad.md          # Definición de 5 pilares
+├── GHEN/                        # Personalidad de contenido GHEN
+│   └── personalidad.md          # Definición de 5 pilares técnicos
 │
 ├── longcontent_generator/       # Módulo principal
 │   ├── __init__.py
@@ -51,11 +48,7 @@ content-generator/
 │   ├── README.md               # Documentación de outputs
 │   └── .gitkeep
 │
-├── bk/                         # Backup de versiones anteriores
-│
-├── Pipeline_LEO_Enhanced.ipynb # 🔥 Workflow principal
-├── test_leo_enhanced.py        # Suite de tests
-├── test_qa_improvement.py      # Test de mejora QA
+├── Pipeline_GHEN_Enhanced.ipynb # 🔥 Workflow principal
 ├── CHANGELOG.md                # Historial de cambios
 └── README.md                   # Este archivo
 ```
@@ -85,6 +78,9 @@ source .venv/bin/activate  # macOS/Linux
 
 # Instalar dependencias
 pip install -r requirements.txt
+
+# 🆕 Instalar dependencias de Gmail API (opcional)
+./install_gmail_deps.sh
 ```
 
 ### 3️⃣ Configuración
@@ -101,18 +97,27 @@ WORDPRESS_LOGIN_AF="tu_usuario"
 WORDPRESS_PASSWORD_AF="tu_app_password"
 ```
 
+**🆕 Gmail API (Opcional - Para Método 3: Newsletter)**
+
+Si quieres leer newsletters desde Gmail:
+
+1. Sigue la guía completa: [`GMAIL_SETUP.md`](GMAIL_SETUP.md)
+2. Descarga `credentials.json` desde Google Cloud Console
+3. Coloca `credentials.json` en la raíz del proyecto
+4. Primera ejecución: autoriza en navegador → genera `token.pickle`
+
 ### 4️⃣ Uso
 
 **Opción 1: Jupyter Notebook (Recomendado)**
 
 ```bash
-jupyter notebook Pipeline_LEO_Enhanced.ipynb
+jupyter notebook Pipeline_GHEN_Enhanced.ipynb
 ```
 
 1. Selecciona tu método en la celda de configuración:
-   - `metodo_seleccionado = "topico"`
-   - `metodo_seleccionado = "keyword"`
-   - `metodo_seleccionado = "newsletter"`
+   - `metodo_seleccionado = "topico"` - Tema amplio → keyword sugerida
+   - `metodo_seleccionado = "keyword"` - Keyword específica → artículo técnico
+   - `metodo_seleccionado = "newsletter"` - Newsletter tech → análisis de tendencias
 
 2. Ejecuta las celdas secuencialmente
 
@@ -121,24 +126,24 @@ jupyter notebook Pipeline_LEO_Enhanced.ipynb
 ```python
 from longcontent_generator import core
 
-# Cargar contexto de LEO
+# Cargar contexto de GHEN
 leo_context = core.load_leo_context()
 
-# Método 1: Desde tópico
+# Método 1: Desde tópico técnico
 keyword = core.suggest_keyword_from_topic(
-    "IA en la escritura creativa", 
+    "Arquitectura de agentes con LangGraph", 
     leo_context
 )
 
-# Método 3: Desde newsletter
+# Método 3: Desde newsletter tech
 analysis = core.extract_and_summarize_url(
-    "https://newsletter-url.com",
+    "https://newsletter-tech-url.com",
     leo_context
 )
 
-# Generar artículo
+# Generar artículo técnico
 article = core.generate_article_with_context(
-    keyword="keyword principal",
+    keyword="deploying llms to production",
     context_sources=["contexto 1", "contexto 2"],
     leo_context=leo_context
 )
@@ -150,54 +155,75 @@ article = core.generate_article_with_context(
 
 ### Método 1: Tópico → Keyword → Artículo
 
-**Caso de uso**: Tienes un tema amplio y necesitas una keyword SEO óptima.
+**Caso de uso**: Tienes un tema técnico amplio y necesitas una keyword SEO óptima.
 
 ```python
-topico = "Inteligencia Artificial en la industria editorial"
+topico = "Implementación de RAG con vector databases"
 keyword = core.suggest_keyword_from_topic(topico, leo_context)
-# → "Inteligencia artificial en la escritura creativa"
+# → "ChromaDB vs Pinecone for production RAG systems"
 ```
 
 ### Método 2: Keyword → Investigación → Artículo
 
-**Caso de uso**: Ya tienes una keyword específica y quieres generar contenido.
+**Caso de uso**: Ya tienes una keyword técnica específica y quieres generar contenido.
 
 ```python
-keyword = "cómo publicar tu primer libro"
+keyword = "mlops best practices for llm deployment"
 # → Scraping de keywords relacionadas
 # → Búsqueda de artículos competencia
 # → Análisis SEO
-# → Generación de artículo
+# → Generación de artículo con código y arquitecturas
 ```
 
 ### Método 3: Newsletter → Análisis → Artículo
 
-**Caso de uso**: Quieres generar contenido basado en una newsletter o artículo.
+**Caso de uso**: Quieres generar contenido basado en una newsletter técnica o release notes.
+
+**Opción A: Gmail API** (🆕 Recomendado para newsletters privados)
 
 ```python
-url = "https://newsletter-url.com"
-analysis = core.extract_and_summarize_url(url, leo_context)
-# → Resumen ejecutivo
-# → Puntos clave
-# → Temas sugeridos para artículos
+# Lee newsletters directamente desde tu Gmail
+gmail_url = "https://mail.google.com/mail/u/0/#inbox/1849085179733622850"
+analysis = core.extract_newsletter_from_gmail(gmail_url, ghen_context)
+# → Extracción OAuth desde inbox
+# → Análisis con Gemini
+# → Artículo "Actualidad y Tendencias" en IA/desarrollo
+```
+
+**Opción B: URL Pública**
+
+```python
+url = "https://ai-newsletter-url.com"
+analysis = core.extract_and_summarize_url(url, ghen_context)
+# → Resumen ejecutivo de tendencias
+# → Puntos clave técnicos
+# → Artículo "Actualidad y Tendencias" en IA/desarrollo
 ```
 
 ---
 
-## 🤖 Personalidad LEO
+## 🤖 Personalidad GHEN
 
-LEO (Lector Editorial Online) es la inteligencia editorial que genera todo el contenido. Su personalidad se basa en **5 pilares**:
+El contenido se genera con una personalidad técnica definida basada en **5 pilares**:
 
-1. **Objetivo y Analítico** - Datos, métricas y hechos concretos
-2. **Empático y Respetuoso** - Valida el esfuerzo creativo
-3. **Visionario y Estratégico** - Proyecta el potencial de las obras
-4. **Narrador de Datos** - Transforma métricas en historias (inspirado en Prodigioso Volcán)
-5. **Curador de Conocimiento** - Filtra ruido, sintetiza información (inspirado en Proyecto451)
+1. **Técnico y Práctico** - Código real, arquitecturas probadas, ejemplos ejecutables
+2. **Pedagógico y Claro** - Conceptos complejos explicados sin oversimplificar
+3. **Experiencial** - Basado en proyectos reales (hackathons, consultoría, producción)
+4. **Orientado a Resultados** - Enfoque en ROI, métricas, decisiones arquitectónicas
+5. **Actualizado** - Cutting-edge: GenAI, LLMs, LangChain, MLOps, cloud-native
 
 **Contexto inyectado en cada generación**:
-- `LEO/personalidad.md` (4,731 caracteres)
-- `.github/project-definitions.md` (4,598 caracteres)
-- `.github/perfilado_cliente.md` (2,491 caracteres)
+- `GHEN/personalidad.md` (Definición completa de los 5 pilares)
+
+**Audiencia objetivo**: Desarrolladores, CTOs, consultores de IA, arquitectos cloud, ingenieros ML
+
+**Tono**: Consultor técnico profesional - primera persona en experiencias ("En mi implementación de..."), instruccional en tutoriales. Equilibra teoría con práctica.
+
+**Temas core**:
+- **IA/GenAI**: LLMs, RAG, agents, prompt engineering, fine-tuning
+- **MLOps/LLMOps**: Deployment, evaluation, monitoring, CI/CD para ML
+- **CODE**: Python (FastAPI), APIs, microservicios, arquitecturas cloud
+- **Casos Prácticos**: Hackathons, microservicios en producción, chatbots, automatización
 
 ---
 
@@ -366,18 +392,36 @@ Solución: Verifica que el archivo `.env` existe y contiene la API key.
 
 Solución: Algunos sitios bloquean scraping. El sistema usa `newspaper3k` con fallback a BeautifulSoup.
 
-### Artículos sin personalidad LEO
+### Artículos sin personalidad GHEN
 
-Solución: Verifica que los archivos de contexto existan:
-- `LEO/personalidad.md`
-- `.github/project-definitions.md`
-- `.github/perfilado_cliente.md`
+Solución: Verifica que el archivo de contexto exista:
+- `GHEN/personalidad.md`
+
+### Gmail API: "credentials.json not found"
+
+Solución: 
+1. Sigue la guía completa: `GMAIL_SETUP.md`
+2. Descarga `credentials.json` desde Google Cloud Console
+3. Coloca en raíz del proyecto
+
+### Gmail API: "This app isn't verified"
+
+Solución: Normal para apps en desarrollo. Clic en "Avanzado" → "Ir a [nombre app] (no seguro)"
+
+---
+
+## 📚 Documentación Adicional
+
+- **[GMAIL_SETUP.md](GMAIL_SETUP.md)** - Configuración paso a paso de Gmail API
+- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Resumen de mejoras implementadas
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** - Guía completa para AI coding agents
+- **[CHANGELOG.md](CHANGELOG.md)** - Historial de cambios del proyecto
 
 ---
 
 ## 🤝 Contribuir
 
-Este es un proyecto privado de **Archivo Final**. Para contribuciones:
+Este es un proyecto privado de **GHEN Digital**. Para contribuciones:
 
 1. Fork el repositorio
 2. Crea una rama feature (`git checkout -b feature/nueva-funcionalidad`)
@@ -389,7 +433,18 @@ Este es un proyecto privado de **Archivo Final**. Para contribuciones:
 
 ## 📝 Licencia
 
-Proyecto privado de **Archivo Final**. Todos los derechos reservados.
+Proyecto privado de **GHEN Digital** (Gabriel Noguera). Todos los derechos reservados.
+
+---
+
+## 🆕 Novedades v2.1.0
+
+- ✅ **Gmail API Integration**: Lee newsletters directamente desde Gmail inbox
+- ✅ **Auto-Referencias**: Extracción automática de URLs y generación de sección de fuentes
+- ✅ **3 Formatos de URL Gmail**: Soporta #inbox/, permmsgid=, y message ID directo
+- ✅ **OAuth 2.0 Persistence**: Token guardado en `token.pickle` para reuso
+- ✅ **Filtros de Newsletter**: Búsqueda por remitente, asunto, fecha
+- ✅ **Documentación Expandida**: GMAIL_SETUP.md con 5 pasos de configuración
 
 ---
 

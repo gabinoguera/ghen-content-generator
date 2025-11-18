@@ -1324,7 +1324,8 @@ def extract_keywords_from_search_titles(search_results_df):
 
 def load_leo_context():
     """
-    Carga los archivos de contexto de LEO (personalidad, proyecto, audiencia).
+    Carga los archivos de contexto de GHEN (personalidad técnica).
+    Mantiene nombre leo_context por compatibilidad con código existente.
     
     Returns:
         dict: Diccionario con las claves 'personality', 'project', 'audience'
@@ -1336,66 +1337,71 @@ def load_leo_context():
     }
     
     try:
-        # Cargar personalidad
-        with open('LEO/personalidad.md', 'r', encoding='utf-8') as f:
+        # Cargar personalidad técnica de GHEN
+        with open('GHEN/personalidad.md', 'r', encoding='utf-8') as f:
             context['personality'] = f.read()
-        print("✅ Personalidad de LEO cargada")
+        print("✅ Personalidad técnica de GHEN cargada")
     except FileNotFoundError:
-        print("⚠️  Archivo de personalidad no encontrado")
+        print("⚠️  Archivo GHEN/personalidad.md no encontrado")
     
+    # Los archivos project y audience son opcionales
+    # Si existen, se cargan; si no, quedan vacíos
     try:
-        # Cargar definición del proyecto
         with open('.github/project-definitions.md', 'r', encoding='utf-8') as f:
             context['project'] = f.read()
         print("✅ Definición del proyecto cargada")
     except FileNotFoundError:
-        print("⚠️  Archivo de definición del proyecto no encontrado")
+        pass  # Opcional
     
     try:
-        # Cargar perfil de audiencia
         with open('.github/perfilado_cliente.md', 'r', encoding='utf-8') as f:
             context['audience'] = f.read()
         print("✅ Perfil de audiencia cargado")
     except FileNotFoundError:
-        print("⚠️  Archivo de perfil de audiencia no encontrado")
+        pass  # Opcional
     
     return context
 
 
+# Alias para compatibilidad
+load_ghen_context = load_leo_context
+
+
 def build_system_prompt(leo_context):
     """
-    Construye el system prompt para Gemini con el contexto de LEO.
+    Construye el system prompt para Gemini con el contexto de GHEN.
     
     Args:
-        leo_context (dict): Diccionario con el contexto de LEO
+        leo_context (dict): Diccionario con el contexto de GHEN (personalidad técnica)
     
     Returns:
         str: System prompt completo
     """
-    system_prompt = f"""Eres LEO, el asistente de contenidos de Archivo Final. 
+    system_prompt = f"""Eres el sistema de generación de contenido técnico para GHEN Digital. 
 
 # TU PERSONALIDAD Y FORMA DE COMUNICAR
 
 {leo_context['personality']}
 
-# CONTEXTO DEL PROYECTO
+# CONTEXTO ADICIONAL DEL PROYECTO
 
-{leo_context['project']}
+{leo_context['project'] if leo_context['project'] else 'GHEN Digital es la marca personal de Gabriel Noguera, consultor de IA y desarrollador especializado en GenAI, MLOps y arquitecturas cloud-native.'}
 
 # AUDIENCIA OBJETIVO
 
-{leo_context['audience']}
+{leo_context['audience'] if leo_context['audience'] else 'Desarrolladores, CTOs, consultores de IA, arquitectos cloud e ingenieros ML que buscan contenido técnico práctico y basado en experiencia real.'}
 
 # TU ROL
 
-Como LEO, tu función es crear contenido editorial de alta calidad que:
-- Eduque y acompañe a escritores en temas de escritura, edición y publicación
-- Sea empático y humano, cercano al escritor que busca orientación
-- Sea profesional, con lenguaje editorial preciso
-- No sea tecnocrático: la IA se menciona como herramienta, no como protagonista
-- Inspire y genere confianza en el proceso creativo
+Tu función es crear contenido técnico de alta calidad para profesionales tech que:
+- Sea práctico y basado en código real, arquitecturas probadas
+- Incluya ejemplos ejecutables, comandos, y snippets completos
+- Explique conceptos complejos de forma clara sin oversimplificar
+- Se base en experiencia real de proyectos (hackathons, consultoría, producción)
+- Se enfoque en resultados medibles: ROI, métricas, trade-offs
+- Esté actualizado con el ecosistema de GenAI/LLMs/MLOps
 
-Recuerda siempre los 5 pilares de tu personalidad: Objetivo y Analítico, Empático y Respetuoso, Visionario y Estratégico, Narrador de Datos, y Curador de Conocimiento.
+Recuerda los 5 pilares: Técnico y Práctico, Pedagógico y Claro, Experiencial, Orientado a Resultados, Actualizado.
 """
     
     return system_prompt
@@ -1621,4 +1627,301 @@ Formato en Markdown."""
     except Exception as e:
         print(f"❌ Error al generar artículo: {str(e)}")
         return None
+
+
+def extract_newsletter_from_gmail(gmail_url, leo_context=None):
+    """
+    Extrae y analiza un newsletter directamente desde Gmail usando Gmail API.
+    
+    Args:
+        gmail_url (str): URL de Gmail (e.g., https://mail.google.com/mail/u/0/#inbox/1849085179733622850)
+        leo_context (dict, optional): Contexto de GHEN
+    
+    Returns:
+        dict: {'raw_analysis': str, 'original_content': str, 'url': str, 'subject': str}
+    """
+    try:
+        from . import gmail
+        
+        # Extraer message ID de la URL
+        message_id = gmail.extract_message_id_from_url(gmail_url)
+        
+        if not message_id:
+            print("❌ No se pudo extraer el ID del mensaje de la URL")
+            print("   Formatos soportados:")
+            print("   - https://mail.google.com/mail/u/0/#inbox/123456789")
+            print("   - https://mail.google.com/mail/u/0/?...&permmsgid=msg-f:123456789")
+            return None
+        
+        print(f"📧 Extrayendo newsletter con ID: {message_id}")
+        
+        # Autenticar con Gmail API
+        service = gmail.authenticate_gmail()
+        if not service:
+            return None
+        
+        # Obtener el contenido del newsletter
+        newsletter_data = gmail.get_newsletter_by_message_id(service, message_id)
+        
+        if not newsletter_data:
+            return None
+        
+        # Usar el contenido HTML si está disponible, sino el texto
+        content = newsletter_data['html'] if newsletter_data['html'] else newsletter_data['body']
+        
+        if not content:
+            print("⚠️  El newsletter no tiene contenido")
+            return None
+        
+        print(f"✅ Newsletter obtenido: {len(content)} caracteres")
+        print(f"📋 Asunto: {newsletter_data['subject']}")
+        print(f"📨 De: {newsletter_data['from']}")
+        
+        # Analizar con Gemini (reutilizar lógica de extract_and_summarize_url)
+        if leo_context is None:
+            leo_context = load_leo_context()
+        
+        system_prompt = build_system_prompt(leo_context)
+        
+        prompt = f"""Analiza el siguiente newsletter técnico y extrae la información clave.
+
+Asunto: {newsletter_data['subject']}
+De: {newsletter_data['from']}
+
+Contenido:
+{content[:15000]}
+
+# Instrucciones
+
+Genera un análisis estructurado que incluya:
+
+1. **Resumen Ejecutivo**: Síntesis de los temas principales (2-3 párrafos)
+2. **Puntos Clave**: 5 insights o temas técnicos más relevantes
+3. **Temas Sugeridos para Artículos**: 3 ideas de artículos técnicos que podrían generarse a partir de este contenido
+
+Formato:
+
+## Resumen
+[tu resumen aquí]
+
+## Puntos Clave
+1. [punto 1]
+2. [punto 2]
+3. [punto 3]
+4. [punto 4]
+5. [punto 5]
+
+## Temas Sugeridos
+1. [tema 1]
+2. [tema 2]
+3. [tema 3]
+"""
+        
+        full_prompt = f"{system_prompt}\n\n{prompt}"
+        response = model.generate_content(full_prompt)
+        
+        analysis = response.text
+        
+        print("✅ Análisis del newsletter completado")
+        
+        return {
+            'raw_analysis': analysis,
+            'original_content': content,
+            'url': newsletter_data['url'],
+            'subject': newsletter_data['subject'],
+            'from': newsletter_data['from']
+        }
+        
+    except ImportError:
+        print("❌ Error: Módulo gmail no disponible")
+        print("   Instala las dependencias: pip install google-auth google-auth-oauthlib google-api-python-client")
+        return None
+    except Exception as e:
+        print(f"❌ Error al extraer newsletter desde Gmail: {str(e)}")
+        return None
+
+
+def list_gmail_newsletters(sender_filter=None, max_results=10):
+    """
+    Lista newsletters disponibles en Gmail (helper para selección interactiva).
+    
+    Args:
+        sender_filter (str, optional): Filtrar por remitente
+        max_results (int): Número máximo de newsletters a listar
+    
+    Returns:
+        list: Lista de dicts con info de newsletters
+    """
+    try:
+        from . import gmail
+        
+        service = gmail.authenticate_gmail()
+        if not service:
+            return []
+        
+        newsletters = gmail.list_newsletters(
+            service,
+            sender_filter=sender_filter,
+            max_results=max_results
+        )
+        
+        return newsletters
+        
+    except ImportError:
+        print("❌ Error: Módulo gmail no disponible")
+        return []
+    except Exception as e:
+        print(f"❌ Error al listar newsletters: {str(e)}")
+        return []
+
+
+def add_source_links_to_article(article_text, context_sources):
+    """
+    Agrega una sección de referencias al final del artículo con links a las fuentes.
+    
+    Args:
+        article_text (str): Texto del artículo generado
+        context_sources (list): Lista de strings con contexto (deben contener URLs)
+    
+    Returns:
+        str: Artículo con sección de referencias agregada
+    """
+    import re
+    
+    if not context_sources:
+        return article_text
+    
+    # Extraer URLs y títulos de las fuentes
+    sources = []
+    
+    for source in context_sources:
+        # Buscar URLs en el contexto
+        urls = re.findall(r'https?://[^\s<>"\\)\\]]+', source)
+        
+        # Buscar títulos (líneas que empiezan con # )
+        titles = re.findall(r'^# (.+)$', source, re.MULTILINE)
+        
+        # Emparejar URLs con títulos cuando sea posible
+        for i, url in enumerate(urls):
+            # Limpiar URL de caracteres finales comunes
+            url = url.rstrip('.,;:!?')
+            
+            # Intentar encontrar un título relevante
+            title = None
+            if i < len(titles):
+                title = titles[i].strip()
+            
+            # Extraer dominio como título si no hay otro
+            if not title:
+                domain_match = re.search(r'https?://(?:www\\.)?([^/]+)', url)
+                if domain_match:
+                    title = domain_match.group(1)
+            
+            sources.append({
+                'url': url,
+                'title': title or url,
+                'source_text': source[:200]  # Guardar snippet para contexto
+            })
+    
+    # Eliminar duplicados (misma URL)
+    seen_urls = set()
+    unique_sources = []
+    for source in sources:
+        if source['url'] not in seen_urls:
+            seen_urls.add(source['url'])
+            unique_sources.append(source)
+    
+    # Si no hay fuentes con URLs, retornar sin cambios
+    if not unique_sources:
+        return article_text
+    
+    # Construir sección de referencias
+    references_section = "\n\n---\n\n## 📚 Referencias y Fuentes\n\n"
+    references_section += "Este artículo se ha elaborado consultando las siguientes fuentes:\n\n"
+    
+    for i, source in enumerate(unique_sources, 1):
+        references_section += f"{i}. [{source['title']}]({source['url']})\n"
+    
+    # Agregar al final del artículo
+    article_with_refs = article_text + references_section
+    
+    print(f"✅ Agregadas {len(unique_sources)} referencias al artículo")
+    
+    return article_with_refs
+
+
+
+def add_source_links_to_article(article_text, context_sources):
+    """
+    Agrega una sección de referencias al final del artículo con links a las fuentes.
+    
+    Args:
+        article_text (str): Texto del artículo generado
+        context_sources (list): Lista de strings con contexto (deben contener URLs)
+    
+    Returns:
+        str: Artículo con sección de referencias agregada
+    """
+    import re
+    
+    if not context_sources:
+        return article_text
+    
+    # Extraer URLs y títulos de las fuentes
+    sources = []
+    
+    for source in context_sources:
+        # Buscar URLs en el contexto
+        urls = re.findall(r'https?://[^\s<>"\)\]]+', source)
+        
+        # Buscar títulos (líneas que empiezan con # )
+        titles = re.findall(r'^# (.+)$', source, re.MULTILINE)
+        
+        # Emparejar URLs con títulos cuando sea posible
+        for i, url in enumerate(urls):
+            # Limpiar URL de caracteres finales comunes
+            url = url.rstrip('.,;:!?')
+            
+            # Intentar encontrar un título relevante
+            title = None
+            if i < len(titles):
+                title = titles[i].strip()
+            
+            # Extraer dominio como título si no hay otro
+            if not title:
+                domain_match = re.search(r'https?://(?:www\.)?([^/]+)', url)
+                if domain_match:
+                    title = domain_match.group(1)
+            
+            sources.append({
+                'url': url,
+                'title': title or url,
+                'source_text': source[:200]  # Guardar snippet para contexto
+            })
+    
+    # Eliminar duplicados (misma URL)
+    seen_urls = set()
+    unique_sources = []
+    for source in sources:
+        if source['url'] not in seen_urls:
+            seen_urls.add(source['url'])
+            unique_sources.append(source)
+    
+    # Si no hay fuentes con URLs, retornar sin cambios
+    if not unique_sources:
+        return article_text
+    
+    # Construir sección de referencias
+    references_section = "\n\n---\n\n## 📚 Referencias y Fuentes\n\n"
+    references_section += "Este artículo se ha elaborado consultando las siguientes fuentes:\n\n"
+    
+    for i, source in enumerate(unique_sources, 1):
+        references_section += f"{i}. [{source['title']}]({source['url']})\n"
+    
+    # Agregar al final del artículo
+    article_with_refs = article_text + references_section
+    
+    print(f"✅ Agregadas {len(unique_sources)} referencias al artículo")
+    
+    return article_with_refs
 
