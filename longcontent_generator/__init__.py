@@ -23,7 +23,9 @@ from .core import (
     extract_newsletter_from_gmail,
     list_gmail_newsletters,
     add_source_links_to_article,
-    load_ghen_context
+    clean_article_metatext,
+    load_ghen_context,
+    generate_featured_image_prompt
 )
 
 from .scraper import (
@@ -32,7 +34,13 @@ from .scraper import (
 )
 
 from .wordpress import (
-    publish_article_from_markdown_cleaned
+    publish_article_from_markdown_cleaned,
+    upload_featured_image_to_wordpress
+)
+
+from .imagen import (
+    generate_image_from_prompt,
+    optimize_image_for_wordpress
 )
 
 from .utils import (
@@ -66,7 +74,9 @@ __all__ = [
     'extract_newsletter_from_gmail',
     'list_gmail_newsletters',
     'add_source_links_to_article',
+    'clean_article_metatext',
     'load_ghen_context',
+    'generate_featured_image_prompt',
     
     # Scraper
     'GoogleKeywordScraper',
@@ -74,6 +84,11 @@ __all__ = [
     
     # WordPress
     'publish_article_from_markdown_cleaned',
+    'upload_featured_image_to_wordpress',
+    
+    # Imagen
+    'generate_image_from_prompt',
+    'optimize_image_for_wordpress',
     
     # Utils
     'show_generated_files',
@@ -87,7 +102,7 @@ __all__ = [
     'model'
 ]
 
-print("✅ LongContent Generator v2.1.0 cargado correctamente")
+print("✅ LongContent Generator v2.2.0 cargado correctamente")
 print("📋 Funciones principales disponibles:")
 print("   • google_custom_search() - Búsqueda en Google")
 print("   • scrape_articles_batch() - Scraping de artículos")
@@ -98,3 +113,5 @@ print("   • publish_article_from_markdown_cleaned() - Publicación WordPress")
 print("   • extract_newsletter_from_gmail() - 🆕 Leer newsletters desde Gmail")
 print("   • list_gmail_newsletters() - 🆕 Listar newsletters disponibles")
 print("   • add_source_links_to_article() - 🆕 Referencias automáticas")
+print("   • generate_featured_image_prompt() - 🆕 Generar prompt de imagen")
+print("   • generate_image_from_prompt() - 🆕 Generar imagen con Imagen 3")

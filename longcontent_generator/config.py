@@ -30,7 +30,7 @@ CONFIG = {
     # Files
     "output_analysis_csv": "outputs/SEO_Analysis_Results.csv",
     "output_outline_md": "outputs/esquema_articulo.md",
-    "output_article_md": "outputs/articulo_completo.md",
+    "output_article_md": "outputs/articulo_ghen_generado.md",
     "output_qa_report": "outputs/qa_report.md",
     "output_suggestions": "outputs/articulos_sugeridos.md",
     

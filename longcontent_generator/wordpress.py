@@ -9,25 +9,88 @@ import markdown
 import re
 
 
-def publish_article_from_markdown_cleaned(article_title, markdown_file_path="articulo_completo.md", status='draft'):
+def upload_featured_image_to_wordpress(image_path, login=None, password=None):
+    """
+    Sube una imagen a WordPress Media Library y retorna su ID.
+    
+    Args:
+        image_path (str): Ruta del archivo de imagen
+        login (str): Usuario de WordPress (opcional, usa .env si no se provee)
+        password (str): Password de WordPress (opcional, usa .env si no se provee)
+    
+    Returns:
+        int: ID de la imagen en WordPress, o None si falla
+    """
+    # Credenciales
+    login = login or os.getenv('WORDPRESS_LOGIN_GHEN')
+    password = password or os.getenv('WORDPRESS_PASSWORD_GHEN')
+    
+    if not login or not password:
+        print("❌ Error: Credenciales de WordPress no encontradas")
+        return None
+    
+    # WordPress Media API endpoint
+    url = 'https://ghendigital.com/wp-json/wp/v2/media'
+    
+    try:
+        # Leer el archivo de imagen
+        with open(image_path, 'rb') as img_file:
+            image_data = img_file.read()
+        
+        filename = os.path.basename(image_path)
+        
+        headers = {
+            'Authorization': 'Basic ' + base64.b64encode(f"{login}:{password}".encode()).decode(),
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Content-Type': 'image/jpeg'
+        }
+        
+        print(f"📤 Subiendo imagen a WordPress: {filename}")
+        response = requests.post(url, headers=headers, data=image_data)
+        response.raise_for_status()
+        
+        media_data = response.json()
+        media_id = media_data.get('id')
+        media_url = media_data.get('source_url')
+        
+        print(f"✅ Imagen subida correctamente")
+        print(f"   🆔 Media ID: {media_id}")
+        print(f"   🔗 URL: {media_url}")
+        
+        return media_id
+        
+    except FileNotFoundError:
+        print(f"❌ Error: Archivo de imagen no encontrado: {image_path}")
+        return None
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error al subir imagen a WordPress: {str(e)}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"   Código de error: {e.response.status_code}")
+            print(f"   Respuesta: {e.response.text}")
+        return None
+
+
+def publish_article_from_markdown_cleaned(article_title, markdown_file_path="outputs/articulo_ghen_generado.md", 
+                                          status='draft', featured_image_path=None):
     """
     Publica artículo desde archivo Markdown a WordPress con limpieza automática del formato.
     
     Args:
         article_title: Título del artículo
-        markdown_file_path: Ruta al archivo markdown (default: articulo_completo.md)
+        markdown_file_path: Ruta al archivo markdown (default: outputs/articulo_ghen_generado.md)
         status: Estado del post - 'draft' o 'publish' (default: 'draft')
+        featured_image_path: Ruta a la imagen destacada (opcional)
     
     Returns:
-        bool: True si exitoso, False en caso contrario
+        dict: {'success': bool, 'post_id': int, 'post_url': str} o None si falla
     """
     # Credenciales de WordPress
-    login = os.getenv('WORDPRESS_LOGIN_AF')
-    password = os.getenv('WORDPRESS_PASSWORD_AF')
+    login = os.getenv('WORDPRESS_LOGIN_GHEN')
+    password = os.getenv('WORDPRESS_PASSWORD_GHEN')
     
     if not login or not password:
         print("❌ Error: Credenciales de WordPress no encontradas en .env")
-        print("   Asegúrate de tener WORDPRESS_LOGIN_AF y WORDPRESS_PASSWORD_AF configuradas")
+        print("   Asegúrate de tener WORDPRESS_LOGIN_GHEN y WORDPRESS_PASSWORD_GHEN configuradas")
         return False
     
     # WordPress API endpoint
@@ -112,6 +175,14 @@ def publish_article_from_markdown_cleaned(article_title, markdown_file_path="art
         'format': 'standard'
     }
     
+    # Subir imagen destacada si se proporcionó
+    featured_media_id = None
+    if featured_image_path and os.path.exists(featured_image_path):
+        print("🖼️  Procesando imagen destacada...")
+        featured_media_id = upload_featured_image_to_wordpress(featured_image_path, login, password)
+        if featured_media_id:
+            data['featured_media'] = featured_media_id
+    
     # Enviar a WordPress
     try:
         print(f"🔄 Publicando en WordPress (status: {status})...")
@@ -125,21 +196,39 @@ def publish_article_from_markdown_cleaned(article_title, markdown_file_path="art
         print(f"✅ Artículo publicado correctamente")
         print(f"   📝 ID del post: {post_id}")
         print(f"   🔗 URL: {post_url}")
-        return True
+        if featured_media_id:
+            print(f"   🖼️  Imagen destacada asignada (ID: {featured_media_id})")
+        
+        return {
+            'success': True,
+            'post_id': post_id,
+            'post_url': post_url,
+            'featured_media_id': featured_media_id
+        }
     
     except requests.exceptions.RequestException as e:
         print(f"❌ Error al publicar en WordPress: {str(e)}")
         if hasattr(e, 'response') and e.response is not None:
             print(f"   Código de error: {e.response.status_code}")
             print(f"   Respuesta: {e.response.text}")
-        return False
+        return None
 
 
-def publicar_articulo_completo_limpio():
-    """Función de conveniencia para publicar el artículo completo con formato corregido"""
+def publicar_articulo_completo_limpio(featured_image_path=None):
+    """
+    Función de conveniencia para publicar el artículo completo con formato corregido.
+    
+    Args:
+        featured_image_path (str): Ruta opcional a imagen destacada
+    
+    Returns:
+        dict: Resultado de la publicación
+    """
     return publish_article_from_markdown_cleaned(
         article_title="aprender a escribir",
-        markdown_file_path="articulo_completo.md",
-        status='draft'  # Cambiar a 'publish' cuando estés listo
+        markdown_file_path="outputs/articulo_ghen_generado.md",
+        status='draft',  # Cambiar a 'publish' cuando estés listo
+        featured_image_path=featured_image_path
     )
+
 

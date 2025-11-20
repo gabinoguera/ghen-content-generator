@@ -237,27 +237,40 @@ def list_newsletters(service, sender_filter=None, subject_filter=None, max_resul
 
 def extract_message_id_from_url(gmail_url):
     """
-    Extrae el message ID de una URL de Gmail
+    Extrae el message ID de una URL de Gmail.
+    Convierte IDs decimales (permmsgid) a hexadecimal requeridos por la API.
     
     Args:
         gmail_url: URL como https://mail.google.com/mail/u/0/?ui=2&ik=...&permmsgid=msg-f:1849085179733622850
                    o https://mail.google.com/mail/u/0/#inbox/1849085179733622850
     
     Returns:
-        str: Message ID o None si no se encuentra
+        str: Message ID hexadecimal o None si no se encuentra
     """
-    # Patrón 1: permmsgid=msg-f:ID o msg-a:ID
-    match = re.search(r'msg-[fa]:(\w+)', gmail_url)
+    # Patrón 1: permmsgid=msg-f:ID o msg-a:ID (Decimal)
+    match = re.search(r'msg-[fa]:(\d+)', gmail_url)
+    if match:
+        try:
+            # Convertir decimal a hex para la API (quitando '0x')
+            return hex(int(match.group(1)))[2:]
+        except ValueError:
+            pass
+    
+    # Patrón 2: #inbox/ID (Hexadecimal)
+    match = re.search(r'#inbox/([a-fA-F0-9]+)', gmail_url)
     if match:
         return match.group(1)
     
-    # Patrón 2: #inbox/ID
-    match = re.search(r'#inbox/(\w+)', gmail_url)
+    # Patrón 3: Solo el ID numérico largo (asumimos decimal si > 16 dígitos)
+    match = re.search(r'(\d{18,})', gmail_url)
     if match:
-        return match.group(1)
-    
-    # Patrón 3: Solo el ID numérico
-    match = re.search(r'(\d{15,})', gmail_url)
+        try:
+            return hex(int(match.group(1)))[2:]
+        except ValueError:
+            pass
+
+    # Patrón 4: ID Hexadecimal directo (fallback)
+    match = re.search(r'([a-fA-F0-9]{16})', gmail_url)
     if match:
         return match.group(1)
     

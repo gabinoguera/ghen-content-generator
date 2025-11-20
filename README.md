@@ -93,8 +93,13 @@ API_KEY="tu_google_custom_search_api_key"
 API_CUSTOM_SEARCH_ID="tu_search_engine_id"
 
 # Opcional: Para publicación WordPress
-WORDPRESS_LOGIN_AF="tu_usuario"
-WORDPRESS_PASSWORD_AF="tu_app_password"
+WORDPRESS_LOGIN_GHEN="tu_usuario"
+WORDPRESS_PASSWORD_GHEN="tu_app_password"
+
+# 🆕 Opcional: Para generación de imágenes con Vertex AI Imagen 3
+PROJECT_ID="tu-proyecto-gcp"
+LOCATION="us-central1"
+SERVICE_ACCOUNT_KEY="ruta-a-service-account.json"
 ```
 
 **🆕 Gmail API (Opcional - Para Método 3: Newsletter)**
@@ -105,6 +110,17 @@ Si quieres leer newsletters desde Gmail:
 2. Descarga `credentials.json` desde Google Cloud Console
 3. Coloca `credentials.json` en la raíz del proyecto
 4. Primera ejecución: autoriza en navegador → genera `token.pickle`
+
+**🎨 Vertex AI Imagen 3 (Opcional - Para generación de imágenes destacadas)**
+
+Si quieres generar imágenes destacadas automáticamente:
+
+1. Ve a [Google Cloud Console](https://console.cloud.google.com/)
+2. Habilita **Vertex AI API** en tu proyecto
+3. Crea una **Service Account** con rol "Vertex AI User"
+4. Descarga la clave JSON y guárdala en la raíz del proyecto
+5. Agrega las variables de entorno en `.env` (ver arriba)
+6. Costo: ~$0.04 USD por imagen generada
 
 ### 4️⃣ Uso
 

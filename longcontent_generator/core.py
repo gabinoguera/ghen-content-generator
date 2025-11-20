@@ -11,6 +11,15 @@ from bs4 import BeautifulSoup
 from newspaper import Article
 from .config import CONFIG, model
 
+# Importar módulo Gmail (con manejo de error si no está instalado)
+try:
+    from . import gmail
+    GMAIL_AVAILABLE = True
+except ImportError as e:
+    # print(f"⚠️  Módulo Gmail no disponible: {e}")
+    GMAIL_AVAILABLE = False
+    gmail = None
+
 
 def google_custom_search(query, country=None, max_results=10):
     """
@@ -1566,33 +1575,40 @@ def generate_article_with_context(keyword, context_sources, leo_context=None):
     
     if is_newsletter_based:
         # Prompt especializado para artículos de Actualidad y Tendencias
-        prompt = f"""Crea un artículo de "Actualidad y Tendencias" sobre: "{keyword}"
+        prompt = f"""Genera un artículo técnico profesional sobre: "{keyword}"
 
 # Contexto: Newsletter y Análisis
 
 {combined_context[:12000]}
 
-# Instrucciones Específicas
+# Instrucciones
 
-Este es un artículo de **actualidad editorial y tendencias en escritura**, basado en el contenido de un newsletter especializado.
+Crea un artículo de actualidad técnica dirigido a **desarrolladores, arquitectos y CTOs**, basado en el contenido del newsletter.
 
-El artículo debe:
-- **Sintetizar las principales tendencias** mencionadas en el newsletter
-- **Conectar los temas** con la realidad de escritores y autores hoy
+**El artículo debe:**
+- Sintetizar las tendencias técnicas clave mencionadas
+- Analizar implicaciones prácticas para entornos de producción
 - Tener entre 1500-2000 palabras
-- Incluir un título atractivo tipo: "Lo que todo escritor debe saber sobre [tema]"
-- Usar subtítulos claros (H2, H3) que organicen las tendencias
-- **Mencionar ejemplos o casos concretos** del newsletter cuando sea relevante
-- Mantener el tono de LEO: empático, profesional, estratégico
-- Incluir insights prácticos que los escritores puedan aplicar
-- Terminar con una reflexión sobre el futuro y un CTA sutil hacia Archivo Final
+- Incluir un título atractivo que capte la relevancia técnica (IMPORTANTE: capitalización correcta en español - solo primera palabra y nombres propios con mayúscula)
+- Usar subtítulos claros (H2, H3) para organizar conceptos
+- Mencionar ejemplos concretos del newsletter cuando sea relevante
+- Mantener tono técnico, práctico y orientado a resultados
+- Incluir insights aplicables (arquitectura, código, decisiones de diseño)
+- Terminar con conclusión sobre impacto en desarrollo/ingeniería
 
-**Importante:** No copies textualmente el newsletter. Interpreta, sintetiza y añade valor editorial.
+**Importante sobre formato de títulos en español:** 
+- Solo la primera palabra y los nombres propios llevan mayúscula inicial
+- CORRECTO: "Grok 4.1 en la carrera de los LLMs: análisis técnico de un contendiente serio"
+- INCORRECTO: "Grok 4.1 En La Carrera De Los LLMs: Análisis Técnico De Un Contendiente Serio"
+- NO incluyas meta-comentarios sobre "personalidades" o "instrucciones recibidas"
+- Empieza DIRECTAMENTE con el título del artículo (# Título)
+- No copies textualmente el newsletter - analiza, sintetiza y añade perspectiva técnica
+- Escribe desde la perspectiva de un consultor técnico experimentado
 
 Formato en Markdown."""
     else:
         # Prompt estándar para artículos basados en investigación
-        prompt = f"""Crea un artículo completo y de alta calidad sobre: "{keyword}"
+        prompt = f"""Genera un artículo técnico completo sobre: "{keyword}"
 
 # Contexto de Investigación
 
@@ -1600,15 +1616,24 @@ Formato en Markdown."""
 
 # Instrucciones
 
-El artículo debe:
+**El artículo debe:**
 - Ser original y estar escrito en español
 - Tener entre 1500-2000 palabras
-- Incluir un título atractivo y SEO-optimizado
+- Empezar DIRECTAMENTE con el título (# Título) - sin meta-comentarios
+- Incluir un título técnico atractivo y optimizado (IMPORTANTE: capitalización correcta en español - solo primera palabra y nombres propios con mayúscula)
 - Tener una estructura clara con subtítulos (H2, H3)
-- Ser educativo y valioso para escritores y autores
-- Incluir ejemplos prácticos cuando sea relevante
-- Mantener un tono empático y profesional
-- Terminar con una conclusión clara y un llamado a la acción sutil
+- Ser valioso para desarrolladores, arquitectos y CTOs
+- Incluir ejemplos de código o arquitectura cuando sea relevante
+- Mantener un tono técnico, práctico y orientado a resultados
+- Terminar con conclusión sobre implicaciones prácticas
+
+**Importante sobre formato de títulos en español:**
+- Solo la primera palabra y los nombres propios llevan mayúscula inicial
+- CORRECTO: "Arquitectura de agentes ReAct con LangGraph: implementación práctica"
+- INCORRECTO: "Arquitectura De Agentes ReAct Con LangGraph: Implementación Práctica"
+- NO incluyas reflexiones internas o meta-comentarios
+- Escribe desde la perspectiva de un consultor técnico experimentado
+- Enfócate en aplicabilidad práctica y decisiones de arquitectura
 
 Formato en Markdown."""
 
@@ -1732,8 +1757,8 @@ Formato:
             'from': newsletter_data['from']
         }
         
-    except ImportError:
-        print("❌ Error: Módulo gmail no disponible")
+    except ImportError as e:
+        print(f"❌ Error: Módulo gmail no disponible. Detalle: {e}")
         print("   Instala las dependencias: pip install google-auth google-auth-oauthlib google-api-python-client")
         return None
     except Exception as e:
@@ -1851,9 +1876,33 @@ def add_source_links_to_article(article_text, context_sources):
 
 
 
+def clean_article_metatext(article_text):
+    """
+    Elimina meta-texto del modelo (reflexiones internas) del inicio del artículo.
+    
+    Args:
+        article_text (str): Texto del artículo generado
+    
+    Returns:
+        str: Artículo sin meta-texto
+    """
+    import re
+    
+    # Buscar el primer encabezado de nivel 1 (título del artículo)
+    match = re.search(r'^#\s+[^#]', article_text, re.MULTILINE)
+    
+    if match:
+        # Si hay un título H1, cortar todo lo anterior
+        article_text = article_text[match.start():]
+        print("✅ Meta-texto eliminado del artículo")
+    
+    return article_text
+
+
 def add_source_links_to_article(article_text, context_sources):
     """
     Agrega una sección de referencias al final del artículo con links a las fuentes.
+    Filtra URLs de tracking y solo incluye dominios relevantes.
     
     Args:
         article_text (str): Texto del artículo generado
@@ -1866,6 +1915,16 @@ def add_source_links_to_article(article_text, context_sources):
     
     if not context_sources:
         return article_text
+    
+    # Dominios de tracking a excluir
+    tracking_domains = [
+        'resend-links.com',
+        'click.', 
+        'track.',
+        'redirect.',
+        'unsubscribe.',
+        'email.'
+    ]
     
     # Extraer URLs y títulos de las fuentes
     sources = []
@@ -1881,6 +1940,11 @@ def add_source_links_to_article(article_text, context_sources):
         for i, url in enumerate(urls):
             # Limpiar URL de caracteres finales comunes
             url = url.rstrip('.,;:!?')
+            
+            # Filtrar URLs de tracking
+            is_tracking = any(domain in url.lower() for domain in tracking_domains)
+            if is_tracking:
+                continue
             
             # Intentar encontrar un título relevante
             title = None
@@ -1909,6 +1973,7 @@ def add_source_links_to_article(article_text, context_sources):
     
     # Si no hay fuentes con URLs, retornar sin cambios
     if not unique_sources:
+        print("⚠️  No se encontraron URLs válidas para referencias")
         return article_text
     
     # Construir sección de referencias
@@ -1924,4 +1989,61 @@ def add_source_links_to_article(article_text, context_sources):
     print(f"✅ Agregadas {len(unique_sources)} referencias al artículo")
     
     return article_with_refs
+
+
+def generate_featured_image_prompt(article_text, article_title):
+    """
+    Genera un prompt optimizado para crear una imagen destacada del artículo usando Gemini.
+    
+    Args:
+        article_text (str): Texto completo del artículo
+        article_title (str): Título del artículo
+    
+    Returns:
+        str: Prompt optimizado para generación de imagen, o None si falla
+    """
+    try:
+        print("🎨 Generando prompt para imagen destacada...")
+        
+        # Extraer primeros párrafos del artículo (contexto clave)
+        article_preview = article_text[:1500]
+        
+        prompt_generation_request = f"""Eres un diseñador gráfico experto especializado en crear imágenes destacadas para artículos técnicos de tecnología, IA y desarrollo.
+
+**Artículo:**
+Título: {article_title}
+
+Contenido (extracto):
+{article_preview}
+
+**Tarea:** Genera un prompt EN INGLÉS optimizado para Imagen 3 (modelo de generación de imágenes) que cree una imagen destacada profesional y atractiva para este artículo.
+
+**Requisitos del prompt:**
+1. Estilo visual: Moderno, profesional, tech-oriented
+2. Elementos clave: Representar el tema principal del artículo visualmente
+3. Colores: Esquema tech (azules, violetas, verdes neón, gradientes)
+4. Evitar: Texto en la imagen, logos específicos, rostros humanos identificables
+5. Formato: Horizontal 16:9 (ideal para WordPress featured image)
+6. Atmósfera: Innovadora, futurista pero accesible
+
+**Instrucciones:**
+- Máximo 100 palabras
+- Lenguaje descriptivo y específico
+- Enfócate en conceptos visuales abstractos o metáforas visuales del tema técnico
+- NO incluyas explicaciones, solo el prompt directo
+
+Genera SOLO el prompt en inglés, sin introducción ni comentarios."""
+
+        response = model.generate_content(prompt_generation_request)
+        time.sleep(CONFIG["api_delay"])
+        
+        generated_prompt = response.text.strip()
+        
+        print(f"✅ Prompt generado: {generated_prompt[:80]}...")
+        
+        return generated_prompt
+        
+    except Exception as e:
+        print(f"❌ Error al generar prompt de imagen: {str(e)}")
+        return None
 
