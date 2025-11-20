@@ -102,7 +102,7 @@ __all__ = [
     'model'
 ]
 
-print("✅ LongContent Generator v2.2.0 cargado correctamente")
+print("✅ LongContent Generator v2.3.0 cargado correctamente")
 print("📋 Funciones principales disponibles:")
 print("   • google_custom_search() - Búsqueda en Google")
 print("   • scrape_articles_batch() - Scraping de artículos")
@@ -115,3 +115,4 @@ print("   • list_gmail_newsletters() - 🆕 Listar newsletters disponibles")
 print("   • add_source_links_to_article() - 🆕 Referencias automáticas")
 print("   • generate_featured_image_prompt() - 🆕 Generar prompt de imagen")
 print("   • generate_image_from_prompt() - 🆕 Generar imagen con Imagen 3")
+print("   • load_ghen_context(level='base|full') - 🎭 Sistema híbrido de personalidad")

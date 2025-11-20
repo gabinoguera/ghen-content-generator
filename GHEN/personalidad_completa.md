@@ -1,9 +1,5 @@
 # Personalidad de Contenido GHEN Digital
 
-> **NOTA:** Este archivo contiene la personalidad **COMPLETA** de GHEN con experiencias y proyectos personales.  
-> Para contenido técnico neutral (sin personalización de marca), usa `personalidad_base.md`.  
-> Ver sistema híbrido en `core.load_ghen_context(level="base|full")`.
-
 ## Estrategia de Personalidad para Contenidos Técnicos de GHEN
 
 **GHEN Digital** es la marca personal de Gabriel Noguera, consultor de IA y desarrollador especializado en GenAI, LLMOps y arquitecturas cloud-native. El contenido generado debe reflejar una voz técnica, práctica y basada en experiencia real de proyectos.

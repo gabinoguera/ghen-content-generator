@@ -1331,27 +1331,43 @@ def extract_keywords_from_search_titles(search_results_df):
 # NUEVAS FUNCIONES PARA LEO CONTENT GENERATION
 # ============================================================================
 
-def load_leo_context():
+def load_leo_context(level="full"):
     """
     Carga los archivos de contexto de GHEN (personalidad técnica).
     Mantiene nombre leo_context por compatibilidad con código existente.
     
+    Sistema híbrido con dos niveles:
+    - "base": Voz técnica neutral sin proyectos personales (personalidad_base.md)
+    - "full": Voz con experiencia personal y stack específico (personalidad_completa.md)
+    
+    Args:
+        level (str): "base" para contenido neutral, "full" para contenido con experiencia personal
+    
     Returns:
-        dict: Diccionario con las claves 'personality', 'project', 'audience'
+        dict: Diccionario con las claves 'personality', 'project', 'audience', 'level'
     """
     context = {
         'personality': '',
         'project': '',
-        'audience': ''
+        'audience': '',
+        'level': level
     }
     
     try:
+        # Seleccionar archivo según nivel
+        if level == "base":
+            personality_path = 'GHEN/personalidad_base.md'
+            print("✅ Personalidad técnica de GHEN cargada (NIVEL BASE: neutral, sin proyectos personales)")
+        else:  # level == "full" (default)
+            personality_path = 'GHEN/personalidad_completa.md'
+            print("✅ Personalidad técnica de GHEN cargada (NIVEL COMPLETO: con experiencias y proyectos)")
+        
         # Cargar personalidad técnica de GHEN
-        with open('GHEN/personalidad.md', 'r', encoding='utf-8') as f:
+        with open(personality_path, 'r', encoding='utf-8') as f:
             context['personality'] = f.read()
-        print("✅ Personalidad técnica de GHEN cargada")
     except FileNotFoundError:
-        print("⚠️  Archivo GHEN/personalidad.md no encontrado")
+        print(f"⚠️  Archivo {personality_path} no encontrado, usando personalidad por defecto")
+        context['personality'] = 'Contenido técnico profesional para desarrolladores y arquitectos.'
     
     # Los archivos project y audience son opcionales
     # Si existen, se cargan; si no, quedan vacíos

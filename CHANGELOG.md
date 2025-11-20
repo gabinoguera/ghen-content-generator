@@ -4,6 +4,38 @@ Todos los cambios notables en este proyecto se documentan aquí.
 
 ---
 
+## [2.3.0] - 2024-11-20
+
+### 🎭 Agregado - Sistema Híbrido de Personalidad
+
+- **Dos niveles de personalidad**: Base (neutral) y Full (experiencias personales)
+- **`personalidad_base.md`**: Voz técnica neutral sin proyectos personales
+  * Stack-agnostic con múltiples opciones tecnológicas
+  * Basado en evidencia pública (benchmarks, papers, docs oficiales)
+  * Sin primera persona ni referencias a proyectos privados
+  * Ideal para: actualidad, comparativas, explicaciones técnicas
+- **`personalidad_completa.md`**: Voz con experiencia personal
+  * Referencias a proyectos específicos (Cofares, consultoría)
+  * Stack tecnológico definido (FastAPI, LangChain, Gemini)
+  * Primera persona en retrospectivas
+  * Ideal para: tutoriales, case studies, lecciones aprendidas
+- **`load_ghen_context(level)`**: Parámetro `level="base|full"` para seleccionar personalidad
+- **README_PERSONALIDAD.md**: Guía completa del sistema híbrido
+
+### 🔧 Mejorado
+
+- Notebook actualizado con selector de nivel de personalidad
+- Mensajes de consola muestran nivel de personalidad cargado
+- Guía contextual en notebook según nivel seleccionado
+
+### 📚 Documentación
+
+- Guía detallada de cuándo usar cada nivel
+- Ejemplos de output para ambos niveles
+- Tabla de decisión: tipo de contenido → nivel recomendado
+
+---
+
 ## [2.2.0] - 2024-11-19
 
 ### 🎨 Agregado - Generación de Imágenes Destacadas
