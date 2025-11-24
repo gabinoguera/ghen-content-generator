@@ -1162,15 +1162,26 @@ No incluyas explicaciones, solo el markdown del artículo mejorado."""
             print(f"   Secciones mejoradas: {improved_h2_titles[:3]}")
             return article_content
         
-        # VALIDACIÓN 4: Respuesta demasiado corta (menos de 500 chars)
-        if len(improved) < 500:
-            print("❌ Respuesta demasiado corta (< 500 chars), retornando original")
+        # VALIDACIÓN 4: Respuesta demasiado corta (menos de 2000 chars mínimo absoluto)
+        if len(improved) < 2000:
+            print(f"❌ Respuesta demasiado corta ({len(improved)} chars < 2000 mínimo)")
+            print("   Un artículo técnico debe tener al menos 2000 caracteres")
+            return article_content
+        
+        # VALIDACIÓN 5: Verificar que contiene el inicio del artículo original
+        # (para detectar si solo devolvió el final)
+        original_start = article_content[:200].strip()
+        if original_start not in improved:
+            print("❌ ERROR: El contenido mejorado no contiene el inicio del artículo original")
+            print("   Posible causa: Gemini devolvió solo un fragmento")
+            print(f"   Inicio original: {original_start[:100]}...")
             return article_content
         
         # Validaciones pasadas ✅
         print("✅ Mejoras aplicadas quirúrgicamente y validadas")
         print(f"   📏 Longitud: {len(article_content)} → {len(improved)} chars ({len(improved)/len(article_content)*100:.1f}%)")
         print(f"   📑 Secciones: {len(original_h2_titles)} → {len(improved_h2_titles)} (preservadas)")
+        print(f"   ✅ Inicio del artículo preservado")
         return improved
             
     except Exception as e:
