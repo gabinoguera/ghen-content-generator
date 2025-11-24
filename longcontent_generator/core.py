@@ -741,72 +741,160 @@ def generate_article_from_outline(
     return complete_article
 
 
-def qa_article_coverage(article_content, related_keywords_context, main_query):
+def qa_article_coverage(article_content, related_keywords_context=None, main_query=None):
     """
-    QA agent que revisa la cobertura del artículo vs keywords relacionadas.
+    QA agent CIEGO que evalúa la calidad del artículo sin contexto de fuentes.
+    Actúa como juez independiente evaluando SOLO el resultado final.
     
     Args:
-        article_content: Contenido del artículo generado
-        related_keywords_context: Contexto de keywords y preguntas
-        main_query: Query principal
+        article_content: Contenido del artículo generado (ÚNICO input necesario)
+        related_keywords_context: (IGNORADO - mantenido por compatibilidad)
+        main_query: (IGNORADO - mantenido por compatibilidad)
     
     Returns:
-        str: Reporte QA
+        str: Reporte QA objetivo
     """
-    keywords = related_keywords_context.get('keywords', [])
-    questions = related_keywords_context.get('questions', [])
-    
-    keywords_text = ", ".join(keywords[:50])
-    questions_text = "\n".join([f"- {q}" for q in questions[:30]])
-    
-    prompt = f"""Genera un reporte QA completo de contenido SEO. Responde DIRECTAMENTE con el reporte en formato markdown, sin introducciones.
+    # QA CIEGO: Solo evalúa el artículo final sin contexto externo
+    prompt = f"""Eres un editor técnico senior evaluando la calidad de este artículo. 
+NO tienes acceso a instrucciones originales ni fuentes. Evalúa SOLO lo que lees.
 
-**QUERY PRINCIPAL:** {main_query}
+# ARTÍCULO A EVALUAR
 
-**ARTÍCULO A REVISAR:**
-{article_content[:10000]}
+{article_content}
 
-**KEYWORDS RELACIONADAS QUE DEBÍAN CUBRIRSE:**
-{keywords_text}
+# CRITERIOS DE EVALUACIÓN
 
-**PREGUNTAS QUE DEBÍAN RESPONDERSE:**
-{questions_text}
+Genera un reporte QA objetivo evaluando estos aspectos. Responde DIRECTAMENTE con el reporte.
 
-**FORMATO REQUERIDO:**
+## 1. NARRATIVA Y FLUIDEZ (Puntuación: X/10)
 
-### 1. COBERTURA DE KEYWORDS
-- Keywords naturalmente integradas ✅
-- Keywords forzadas o mal integradas ⚠️
-- Keywords faltantes ❌
-- Puntuación: X/10
+**Análisis:**
+- ¿El texto fluye naturalmente de un párrafo a otro?
+- ¿Las transiciones son suaves o abruptas?
+- ¿Se siente como una conversación experta o como un listado?
+- ¿Hay ritmo variado en las oraciones?
 
-### 2. COBERTURA DE PREGUNTAS
-- Preguntas bien respondidas ✅
-- Preguntas parcialmente respondidas ⚠️
-- Preguntas no respondidas ❌
-- Puntuación: X/10
+**Problemas detectados:**
+- [Lista específica de problemas de fluidez]
 
-### 3. COMPLETITUD SEMÁNTICA
-- Cobertura del landscape semántico
-- Gaps en autoridad topical
-- Balance fundamentals vs. avanzado
-- Puntuación: X/10
+**Puntuación justificada:** X/10
 
-### 4. CALIDAD DEL CONTENIDO
-- Coherencia y flujo narrativo
-- Profundidad y valor único
-- Estructura y legibilidad
-- Puntuación: X/10
+---
 
-### 5. RECOMENDACIONES ESPECÍFICAS
-- Secciones a expandir
-- Keywords a integrar mejor
-- Preguntas a responder
-- Mejoras estructurales
+## 2. EQUILIBRIO LISTAS vs PÁRRAFOS (Puntuación: X/10)
 
-**IMPORTANTE:** Comienza directamente con el reporte. NO uses frases como "Como experto", "Aquí tienes", etc.
+**Análisis:**
+- Ratio estimado: X% listas, Y% párrafos narrativos
+- ¿Se abusa de viñetas cuando podrían ser párrafos?
+- ¿Las listas se usan solo cuando son necesarias?
+- ¿Hay suficiente contenido narrativo que desarrolle ideas?
 
-Idioma: {CONFIG["output_language"]}
+**Secciones problemáticas:**
+- [Identificar secciones con exceso de listas]
+
+**Puntuación justificada:** X/10
+
+---
+
+## 3. TONO Y CALIDEZ (Puntuación: X/10)
+
+**Análisis:**
+- ¿El tono es cálido y conversacional o frío y distante?
+- ¿Se siente humano o generado automáticamente?
+- ¿Hay voz personal o es completamente impersonal?
+- ¿El lenguaje invita a seguir leyendo?
+
+**Observaciones:**
+- [Ejemplos de tono frío o cálido encontrados]
+
+**Puntuación justificada:** X/10
+
+---
+
+## 4. REPETICIONES Y VARIEDAD LÉXICA (Puntuación: X/10)
+
+**Análisis:**
+- ¿Se repiten frases o estructuras de oración?
+- ¿Hay variedad en el vocabulario técnico?
+- ¿Las ideas se repiten sin aportar valor nuevo?
+- ¿Cada párrafo avanza la narrativa?
+
+**Repeticiones detectadas:**
+- [Lista de frases/estructuras repetitivas si las hay]
+
+**Puntuación justificada:** X/10
+
+---
+
+## 5. VALOR Y PROFUNDIDAD (Puntuación: X/10)
+
+**Análisis:**
+- ¿Cada sección aporta insights únicos?
+- ¿Hay profundidad técnica real o solo superficie?
+- ¿Se conectan conceptos de forma significativa?
+- ¿El lector aprende algo valioso?
+
+**Observaciones:**
+- [Identificar secciones con alto/bajo valor]
+
+**Puntuación justificada:** X/10
+
+---
+
+## 6. ESTRUCTURA Y ORGANIZACIÓN (Puntuación: X/10)
+
+**Análisis:**
+- ¿La estructura es lógica y fácil de seguir?
+- ¿Los títulos y subtítulos son claros?
+- ¿Hay jerarquía clara de información?
+- ¿El artículo tiene introducción, desarrollo y conclusión coherentes?
+
+**Observaciones:**
+- [Comentarios sobre estructura]
+
+**Puntuación justificada:** X/10
+
+---
+
+## PUNTUACIÓN GLOBAL: X/10
+
+**Promedio de los 6 criterios**
+
+---
+
+## RECOMENDACIONES PRIORITARIAS
+
+### 🔴 CRÍTICAS (Deben corregirse)
+1. [Problema más grave identificado]
+2. [Segundo problema más grave]
+
+### 🟡 MEJORAS SUGERIDAS
+1. [Mejora recomendada 1]
+2. [Mejora recomendada 2]
+3. [Mejora recomendada 3]
+
+### ✅ FORTALEZAS
+1. [Aspecto bien logrado 1]
+2. [Aspecto bien logrado 2]
+
+---
+
+## INSTRUCCIONES PARA MEJORA
+
+**Para aumentar narrativa:**
+[Instrucciones específicas basadas en el artículo]
+
+**Para mejorar tono:**
+[Instrucciones específicas basadas en el artículo]
+
+**Para eliminar repeticiones:**
+[Instrucciones específicas basadas en el artículo]
+
+---
+
+**IMPORTANTE:** Sé honesto y crítico. Este es un proceso interno de mejora.
+
+Idioma: español
 
 REPORTE QA:
 """

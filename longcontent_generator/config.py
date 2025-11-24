@@ -13,9 +13,13 @@ _ = load_dotenv(find_dotenv())
 CONFIG = {
     # Gemini Configuration
     "gemini_model": "gemini-2.5-flash",
-    "temperature": 0.7,
-    "top_p": 0.95,
-    "top_k": 40,
+    # Optimizado para contenido de actualidad/newsletter:
+    # - temperature más alta para mayor variedad léxica y creatividad
+    # - top_p reducido para evitar repeticiones
+    # - top_k aumentado para riqueza de vocabulario
+    "temperature": 0.8,      # ↑ Mayor creatividad y variación
+    "top_p": 0.85,           # ↓ Reduce repeticiones mantiene calidad
+    "top_k": 50,             # ↑ Mayor diversidad léxica
     "max_output_tokens": 12000,
     
     # Search Configuration

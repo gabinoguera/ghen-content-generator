@@ -76,13 +76,41 @@ def get_newsletter_by_message_id(service, message_id):
     
     Args:
         service: Servicio de Gmail API
-        message_id: ID del mensaje (número, e.g., '1849085179733622850')
+        message_id: ID del mensaje (hex o Gmail UI hash)
     
     Returns:
         dict: {'subject': str, 'from': str, 'body': str, 'html': str, 'url': str}
     """
     try:
-        # Obtener el mensaje completo
+        # Si el ID parece ser un Gmail UI hash (contiene mayúsculas/minúsculas mixtas),
+        # intentar buscarlo primero para obtener el ID real de la API
+        if any(c.isupper() for c in message_id) and any(c.islower() for c in message_id):
+            print(f"⚠️  ID '{message_id}' parece ser un Gmail UI hash")
+            print("💡 Para mejor compatibilidad, usa URLs con formato:")
+            print("   • Haz clic derecho en el email → 'Copiar enlace al mensaje'")
+            print("   • O usa el botón 'Ver en navegador' del newsletter")
+            print("\n🔍 Intentando buscar el mensaje en tu bandeja...\n")
+            
+            # Buscar en los últimos 100 mensajes
+            results = service.users().messages().list(
+                userId='me',
+                maxResults=100,
+                q='in:inbox'
+            ).execute()
+            
+            messages = results.get('messages', [])
+            if not messages:
+                print("❌ No se encontraron mensajes recientes")
+                return None
+            
+            # Intentar encontrar el mensaje correcto pidiendo al usuario que lo seleccione
+            print(f"📧 Encontrados {len(messages)} mensajes recientes")
+            print("❌ No se puede determinar automáticamente cuál es el correcto")
+            print("\n💡 SOLUCIÓN: Usa la celda 'Listar Newsletters' del notebook")
+            print("   Te mostrará todos tus newsletters con sus IDs correctos")
+            return None
+        
+        # Obtener el mensaje completo con el ID de API
         message = service.users().messages().get(
             userId='me', 
             id=message_id,
@@ -240,14 +268,18 @@ def extract_message_id_from_url(gmail_url):
     Extrae el message ID de una URL de Gmail.
     Convierte IDs decimales (permmsgid) a hexadecimal requeridos por la API.
     
+    Formatos soportados:
+    - https://mail.google.com/mail/u/0/#inbox/FMfcgzQcqthzZXTKZTwjsKffFKdKCpsx (Gmail hash)
+    - https://mail.google.com/mail/u/0/#inbox/1849085179733622850 (Hex)
+    - https://mail.google.com/mail/u/0/?permmsgid=msg-f:1849085179733622850 (Decimal)
+    
     Args:
-        gmail_url: URL como https://mail.google.com/mail/u/0/?ui=2&ik=...&permmsgid=msg-f:1849085179733622850
-                   o https://mail.google.com/mail/u/0/#inbox/1849085179733622850
+        gmail_url: URL de Gmail o ID directo
     
     Returns:
-        str: Message ID hexadecimal o None si no se encuentra
+        str: Message ID o None si no se encuentra
     """
-    # Patrón 1: permmsgid=msg-f:ID o msg-a:ID (Decimal)
+    # Patrón 1: permmsgid=msg-f:ID o msg-a:ID (Decimal - convertir a hex)
     match = re.search(r'msg-[fa]:(\d+)', gmail_url)
     if match:
         try:
@@ -256,12 +288,22 @@ def extract_message_id_from_url(gmail_url):
         except ValueError:
             pass
     
-    # Patrón 2: #inbox/ID (Hexadecimal)
-    match = re.search(r'#inbox/([a-fA-F0-9]+)', gmail_url)
+    # Patrón 2: #inbox/ID (puede ser hex, alfanumérico o Gmail hash)
+    # Gmail usa hashes alfanuméricos con mayúsculas/minúsculas (e.g., FMfcgzQcqthzZXTKZTwjsKffFKdKCpsx)
+    match = re.search(r'#inbox/([a-zA-Z0-9]+)', gmail_url)
     if match:
-        return match.group(1)
+        message_id = match.group(1)
+        # Si el ID tiene más de 16 caracteres, probablemente es un Gmail hash o decimal
+        if len(message_id) > 16 and message_id.isdigit():
+            # Es decimal, convertir a hex
+            try:
+                return hex(int(message_id))[2:]
+            except ValueError:
+                pass
+        # De lo contrario, usar el ID tal cual (Gmail hash o hex)
+        return message_id
     
-    # Patrón 3: Solo el ID numérico largo (asumimos decimal si > 16 dígitos)
+    # Patrón 3: Solo el ID numérico largo sin # (asumimos decimal si > 16 dígitos)
     match = re.search(r'(\d{18,})', gmail_url)
     if match:
         try:
@@ -269,9 +311,11 @@ def extract_message_id_from_url(gmail_url):
         except ValueError:
             pass
 
-    # Patrón 4: ID Hexadecimal directo (fallback)
-    match = re.search(r'([a-fA-F0-9]{16})', gmail_url)
-    if match:
-        return match.group(1)
+    # Patrón 4: ID directo sin URL (alfanumérico o hex)
+    # Si la entrada es solo un ID (sin https://), usarlo directamente
+    if not gmail_url.startswith('http') and len(gmail_url) > 10:
+        # Verificar si es alfanumérico válido
+        if re.match(r'^[a-zA-Z0-9]+$', gmail_url):
+            return gmail_url
     
     return None

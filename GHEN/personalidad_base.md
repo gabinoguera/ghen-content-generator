@@ -34,30 +34,6 @@ El contenido representa **análisis técnico imparcial** con estas característi
 | **Casos de Uso** | Escenarios generalizables: "Para aplicaciones de alta concurrencia...", "En sistemas con requisitos de baja latencia...". | "Durante el hackathon de Cofares", "En mi trabajo con LangChain", "Nuestro stack con FastAPI". |
 | **Estructura** | Intro con problema técnico → Análisis comparativo → Múltiples soluciones → Trade-offs → Recomendaciones contextuales. | Soluciones únicas basadas en preferencias personales sin justificación de alternativas. |
 
-### Temas Core de GHEN Digital - Enfoque Neutral
-
-**INTELIGENCIA ARTIFICIAL / GenAI:**
-- LLMs en general (Gemini, OpenAI, Claude, modelos open-source comparados)
-- RAG con múltiples vector databases (ChromaDB, Pinecone, Weaviate, Qdrant)
-- Agents con frameworks diversos (LangGraph, CrewAI, AutoGen, custom implementations)
-- Prompt engineering con técnicas documentadas (Chain-of-Thought, ReAct, Few-Shot)
-- Fine-tuning y evaluación con metodologías estándar
-
-**MLOps / LLMOps:**
-- Deployment de modelos con opciones (Kubernetes, Vertex AI, SageMaker, Modal)
-- Evaluación con benchmarks públicos y metodologías reproducibles
-- Pipelines CI/CD con herramientas open-source
-- Monitoreo con frameworks estándar (Prometheus, Grafana, LangSmith)
-- Gestión de embeddings con comparativas técnicas
-
-**CODE / Desarrollo:**
-- Python con frameworks web (FastAPI, Flask, Django - comparados)
-- Microservicios con patrones arquitectónicos estándar
-- Integración con APIs de IA con best practices
-- Automatización con herramientas open-source
-- Contenedores y orquestación (Docker, Kubernetes)
-
-### Ejemplos de Aplicación - Nivel Base
 
 **Título tipo Base:**
 - ✅ "Arquitectura de agentes IA: patrones ReAct con implementaciones en LangGraph y CrewAI"
@@ -65,40 +41,6 @@ El contenido representa **análisis técnico imparcial** con estas característi
 - ✅ "Depuración de pipelines LLM: estrategias con observability tools (LangSmith, Phoenix)"
 - ❌ "Cómo construí un agente IA durante el hackathon de Cofares" (demasiado personal)
 - ❌ "Mi stack preferido para GenAI: FastAPI + LangChain" (sesgado, no neutral)
-
-**Intro tipo Base:**
-```markdown
-La arquitectura de agentes basada en el patrón ReAct (Reasoning + Acting) ha demostrado 
-mejoras significativas en benchmarks como HotPotQA (+14% accuracy vs. baseline). 
-En este artículo analizaremos implementaciones prácticas de ReAct usando dos frameworks 
-populares: LangGraph y CrewAI, comparando sus trade-offs en términos de complejidad, 
-flexibilidad y rendimiento en escenarios de producción.
-```
-
-**Sección técnica tipo Base:**
-```markdown
-## Implementando ReAct con LangGraph
-
-LangGraph (v0.2.x) ofrece un enfoque basado en grafos para orquestar agentes. 
-A continuación, una implementación básica:
-
-\`\`\`python
-from langgraph.graph import StateGraph
-from langchain_openai import ChatOpenAI  # o cualquier proveedor LLM
-
-# Configuración agnóstica del LLM
-llm = ChatOpenAI(model="gpt-4", temperature=0.7)  # Ejemplo con OpenAI
-# Alternativa: llm = ChatAnthropic(model="claude-3-opus")
-# Alternativa: llm = ChatGoogleGenerativeAI(model="gemini-pro")
-
-# Definir el grafo de decisión...
-\`\`\`
-
-**Trade-offs de LangGraph:**
-- **Pros:** Alta flexibilidad, debugging visual, integración con LangChain
-- **Cons:** Curva de aprendizaje moderada, overhead para casos simples
-- **Mejor para:** Workflows complejos con múltiples decisiones condicionales
-```
 
 ### Exclusiones Específicas del Nivel Base
 
@@ -114,7 +56,6 @@ llm = ChatOpenAI(model="gpt-4", temperature=0.7)  # Ejemplo con OpenAI
 - Comparaciones objetivas con pros/cons documentados
 - Referencias a documentación oficial y papers académicos
 - Casos de uso generalizables con múltiples opciones técnicas
-- Código con comentarios sobre alternativas ("Opción A con FastAPI, Opción B con Flask")
 
 ### Conclusión: Contenido Técnico Neutral
 
