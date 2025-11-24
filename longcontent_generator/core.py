@@ -1870,13 +1870,14 @@ Formato:
         return None
 
 
-def list_gmail_newsletters(sender_filter=None, max_results=10):
+def list_gmail_newsletters(sender_filter=None, max_results=10, only_primary=True):
     """
     Lista newsletters disponibles en Gmail (helper para selección interactiva).
     
     Args:
-        sender_filter (str, optional): Filtrar por remitente
+        sender_filter (str or list, optional): Filtrar por remitente(s)
         max_results (int): Número máximo de newsletters a listar
+        only_primary (bool): Si True, busca solo en bandeja Principal (excluye Promociones)
     
     Returns:
         list: Lista de dicts con info de newsletters
@@ -1891,7 +1892,8 @@ def list_gmail_newsletters(sender_filter=None, max_results=10):
         newsletters = gmail.list_newsletters(
             service,
             sender_filter=sender_filter,
-            max_results=max_results
+            max_results=max_results,
+            only_primary=only_primary
         )
         
         return newsletters
