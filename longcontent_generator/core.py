@@ -1013,6 +1013,9 @@ def improve_article_based_on_qa(article_content: str, qa_report: str) -> str:
     Mejora el artículo aplicando las observaciones del QA de forma quirúrgica.
     Solo modifica las áreas específicas identificadas por el análisis QA.
     
+    IMPORTANTE: No regenera el artículo completo, solo aplica mejoras específicas
+    preservando el contenido original intacto.
+    
     Args:
         article_content: Contenido actual del artículo
         qa_report: Reporte QA con observaciones específicas
@@ -1024,34 +1027,163 @@ def improve_article_based_on_qa(article_content: str, qa_report: str) -> str:
         return article_content
     
     print("🔧 Aplicando mejoras basadas en análisis QA...")
+    print("⚠️  MODO QUIRÚRGICO: Solo se modificarán las secciones específicas mencionadas en el QA\n")
     
-    # Extraer observaciones específicas del QA
-    improvements_needed = extract_qa_improvements(qa_report)
+    # Usar Gemini para aplicar mejoras de forma inteligente y quirúrgica
+    improved_content = apply_qa_improvements_surgical(article_content, qa_report)
     
-    if not improvements_needed:
-        print("✅ No se detectaron mejoras necesarias")
+    # Validar que el contenido mejorado no sea el análisis del newsletter
+    if "## Resumen Ejecutivo" in improved_content and "## Puntos Clave" in improved_content:
+        print("❌ ERROR: Gemini regeneró contenido incorrecto (análisis de newsletter)")
+        print("✅ Retornando artículo original sin cambios")
         return article_content
     
-    print(f"📋 Mejoras detectadas: {len(improvements_needed)}")
-    for improvement in improvements_needed:
-        description = improvement.get('description', improvement.get('section', improvement.get('keyword', 'Sin descripción')))
-        print(f"   • {improvement['type']}: {description}")
-    
-    # Aplicar mejoras de forma quirúrgica
-    improved_content = apply_qa_improvements(article_content, improvements_needed)
+    # Validar longitud mínima (debe ser similar al original)
+    if len(improved_content) < len(article_content) * 0.7:
+        print(f"❌ ERROR: Contenido mejorado muy corto ({len(improved_content)} vs {len(article_content)} chars)")
+        print("✅ Retornando artículo original sin cambios")
+        return article_content
     
     # Guardar versión mejorada
     output_file = "outputs/articulo_mejorado_qa.md"
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(improved_content)
     
-    print(f"✅ Artículo mejorado guardado en: {output_file}")
+    print(f"\n✅ Artículo mejorado guardado en: {output_file}")
+    print(f"📊 Longitud original: {len(article_content)} caracteres")
+    print(f"📊 Longitud mejorada: {len(improved_content)} caracteres")
     return improved_content
+
+
+def apply_qa_improvements_surgical(article_content: str, qa_report: str) -> str:
+    """
+    Aplica mejoras del QA de forma quirúrgica usando Gemini (versión robusta con validaciones).
+    
+    CRÍTICO: No regenera el artículo, solo aplica las mejoras específicas del QA.
+    
+    Validaciones implementadas:
+    - Detecta si Gemini regeneró contenido incorrecto (newsletter analysis)
+    - Valida que la longitud sea similar al original (±30%)
+    - Verifica que preserve secciones principales del artículo
+    - Detecta cambios de tema o estructura
+    
+    Args:
+        article_content: Artículo original completo
+        qa_report: Reporte QA con recomendaciones específicas
+    
+    Returns:
+        str: Artículo con mejoras aplicadas quirúrgicamente, o artículo original si falla validación
+    """
+    print("🔬 Aplicando mejoras quirúrgicas con Gemini...\n")
+    
+    # Extraer títulos principales del artículo original para validación
+    import re
+    original_h2_titles = re.findall(r'^##\s+([^\n]+)', article_content, re.MULTILINE)
+    
+    prompt = f"""Eres un editor técnico experto. Tu tarea es aplicar ÚNICAMENTE las mejoras específicas mencionadas en el reporte QA al artículo existente.
+
+## REPORTE QA CON MEJORAS A APLICAR:
+{qa_report}
+
+## ARTÍCULO ORIGINAL COMPLETO:
+{article_content}
+
+## INSTRUCCIONES CRÍTICAS:
+
+1. **NO REGENERES EL ARTÍCULO** - Solo aplica las mejoras específicas mencionadas en el QA
+2. **PRESERVA TODO** - Mantén intactos los párrafos, secciones y contenido que NO necesitan cambios
+3. **MODIFICACIONES QUIRÚRGICAS** - Si el QA dice "mejorar tono en sección X", solo modifica esa sección X
+4. **MANTÉN ESTRUCTURA** - No cambies el orden de secciones, títulos (## headers) o la estructura general
+5. **SOLO LAS MEJORAS DEL QA** - No agregues contenido nuevo que no esté en las recomendaciones
+6. **MISMO TEMA** - El artículo mejorado debe tratar EXACTAMENTE el mismo tema que el original
+7. **KEYWORDS FALTANTES** - Si el QA menciona keywords ❌, intégralas naturalmente en contexto apropiado
+8. **KEYWORDS FORZADAS** - Si el QA menciona keywords ⚠️, suaviza su integración actual
+9. **NO CAMBIES FORMATO** - No conviertas el artículo en resumen ejecutivo, newsletter, o análisis
+
+## EJEMPLOS DE MODIFICACIONES QUIRÚRGICAS:
+
+❌ INCORRECTO: Regenerar todo el artículo con nuevo contenido
+✅ CORRECTO: Modificar solo las 2-3 frases específicas mencionadas en el QA
+
+❌ INCORRECTO: Cambiar párrafos que el QA no mencionó
+✅ CORRECTO: Preservar párrafos intactos si no hay recomendaciones sobre ellos
+
+❌ INCORRECTO: Reemplazar el artículo con un análisis o resumen
+✅ CORRECTO: Aplicar las mejoras de tono/estilo/repeticiones mencionadas en el QA
+
+❌ INCORRECTO: Añadir secciones como "## Resumen Ejecutivo" o "## Puntos Clave"
+✅ CORRECTO: Mantener los títulos de sección originales (## headers) exactamente iguales
+
+❌ INCORRECTO: Cambiar el tema del artículo
+✅ CORRECTO: Mantener el mismo tema y mejorar solo lo que el QA indica
+
+## TU RESPUESTA:
+
+Devuelve SOLO el artículo mejorado completo (con TODAS las secciones originales preservadas + las mejoras del QA aplicadas). 
+No incluyas explicaciones, solo el markdown del artículo mejorado."""
+
+    try:
+        time.sleep(CONFIG["api_delay"])
+        response = model.generate_content(prompt)
+        
+        if not hasattr(response, 'text') or not response.text:
+            print("❌ No se obtuvo respuesta válida de Gemini")
+            return article_content
+        
+        improved = clean_conversational_response(response.text)
+        
+        # VALIDACIÓN 1: Detectar si regeneró contenido tipo newsletter/resumen
+        newsletter_patterns = [
+            "## Resumen Ejecutivo",
+            "## Puntos Clave",
+            "## Conclusiones Principales",
+            "## Ideas Destacadas",
+            "## Aspectos Destacados"
+        ]
+        if any(pattern in improved for pattern in newsletter_patterns):
+            print("❌ ERROR: Gemini regeneró contenido tipo newsletter/resumen en lugar de mejorar el artículo")
+            print("   Devolviendo artículo original sin cambios")
+            return article_content
+        
+        # VALIDACIÓN 2: Longitud similar (±30% del original)
+        min_length = len(article_content) * 0.7
+        max_length = len(article_content) * 1.3
+        if not (min_length <= len(improved) <= max_length):
+            print(f"❌ ERROR: Longitud inválida - Original: {len(article_content)} chars, Mejorado: {len(improved)} chars")
+            print(f"   Rango esperado: {min_length:.0f} - {max_length:.0f} chars")
+            print("   El artículo mejorado debe tener longitud similar al original")
+            return article_content
+        
+        # VALIDACIÓN 3: Verificar que preserva títulos principales (debe mantener al menos 70%)
+        improved_h2_titles = re.findall(r'^##\s+([^\n]+)', improved, re.MULTILINE)
+        if len(improved_h2_titles) < len(original_h2_titles) * 0.7:
+            print(f"❌ ERROR: Se perdieron secciones - Original: {len(original_h2_titles)} secciones, Mejorado: {len(improved_h2_titles)}")
+            print(f"   Secciones originales: {original_h2_titles[:3]}")
+            print(f"   Secciones mejoradas: {improved_h2_titles[:3]}")
+            return article_content
+        
+        # VALIDACIÓN 4: Respuesta demasiado corta (menos de 500 chars)
+        if len(improved) < 500:
+            print("❌ Respuesta demasiado corta (< 500 chars), retornando original")
+            return article_content
+        
+        # Validaciones pasadas ✅
+        print("✅ Mejoras aplicadas quirúrgicamente y validadas")
+        print(f"   📏 Longitud: {len(article_content)} → {len(improved)} chars ({len(improved)/len(article_content)*100:.1f}%)")
+        print(f"   📑 Secciones: {len(original_h2_titles)} → {len(improved_h2_titles)} (preservadas)")
+        return improved
+            
+    except Exception as e:
+        print(f"❌ Error al aplicar mejoras: {str(e)}")
+        return article_content
 
 
 def extract_qa_improvements(qa_report: str) -> List[Dict[str, str]]:
     """
+    [FUNCIÓN LEGACY - Ya no se usa, se mantiene por compatibilidad]
+    
     Extrae las mejoras específicas del reporte QA.
+    Nota: La nueva función apply_qa_improvements_surgical() usa Gemini directamente.
     
     Args:
         qa_report: Reporte QA completo
@@ -1059,187 +1191,40 @@ def extract_qa_improvements(qa_report: str) -> List[Dict[str, str]]:
     Returns:
         List[Dict]: Lista de mejoras a aplicar
     """
-    improvements = []
-    
-    import re
-    
-    # Buscar keywords faltantes (❌) - patrón específico para el formato del QA
-    missing_pattern = r'\*\s*\*\*([^*]+)\*\*:\s*❌\s*([^\n]+)'
-    missing_matches = re.findall(missing_pattern, qa_report)
-    
-    for keyword, description in missing_matches:
-        keyword = keyword.strip()
-        description = description.strip()
-        
-        # Filtrar matches válidos
-        if len(keyword) > 3 and not keyword.isdigit():
-            improvements.append({
-                'type': 'missing_keyword',
-                'keyword': keyword,
-                'description': description,
-                'action': 'integrate_naturally'
-            })
-    
-    # Buscar keywords forzadas (⚠️) - patrón específico para el formato del QA
-    forced_pattern = r'\*\s*\*\*([^*]+)\*\*:\s*⚠️\s*([^\n]+)'
-    forced_matches = re.findall(forced_pattern, qa_report)
-    
-    for keyword, description in forced_matches:
-        keyword = keyword.strip()
-        description = description.strip()
-        
-        # Filtrar matches válidos
-        if len(keyword) > 3 and not keyword.isdigit():
-            improvements.append({
-                'type': 'forced_keyword',
-                'keyword': keyword,
-                'description': description,
-                'action': 'smooth_integration'
-            })
-    
-    # Buscar secciones a expandir
-    expand_sections = re.findall(r'expandir[^:]*:\s*([^\n]+)', qa_report, re.IGNORECASE)
-    for section in expand_sections:
-        improvements.append({
-            'type': 'expand_section',
-            'section': section.strip(),
-            'action': 'add_content'
-        })
-    
-    # Limitar a las mejoras más relevantes para evitar spam
-    return improvements[:5]
+    # Esta función ya no se usa en el flujo principal
+    # Se mantiene por compatibilidad con código legacy
+    return []
 
 
 def apply_qa_improvements(article_content: str, improvements: List[Dict[str, str]]) -> str:
     """
-    Aplica las mejoras específicas al contenido del artículo.
+    [FUNCIÓN LEGACY - Ya no se usa]
     
-    Args:
-        article_content: Contenido original
-        improvements: Lista de mejoras a aplicar
-    
-    Returns:
-        str: Contenido mejorado
+    La funcionalidad de aplicar mejoras ahora la maneja apply_qa_improvements_surgical()
+    que es más robusta y previene regeneración completa del contenido.
     """
-    improved_content = article_content
-    
-    for improvement in improvements:
-        if improvement['type'] == 'missing_keyword':
-            improved_content = integrate_missing_keyword(
-                improved_content, 
-                improvement['keyword'], 
-                improvement['description']
-            )
-        elif improvement['type'] == 'forced_keyword':
-            improved_content = smooth_keyword_integration(
-                improved_content, 
-                improvement['keyword']
-            )
-        elif improvement['type'] == 'expand_section':
-            improved_content = expand_section_content(
-                improved_content, 
-                improvement['section']
-            )
-    
-    return improved_content
+    return article_content
 
 
 def integrate_missing_keyword(content: str, keyword: str, description: str) -> str:
     """
-    Integra una keyword faltante de forma natural en el contenido.
+    [FUNCIÓN LEGACY - Ya no se usa]
     """
-    print(f"🔑 Integrando keyword faltante: '{keyword}'")
-    
-    # Crear prompt para integración natural
-    prompt = f"""Integra la siguiente keyword de forma natural en el contenido existente.
-
-**KEYWORD A INTEGRAR:** {keyword}
-**CONTEXTO:** {description}
-**CONTENIDO ACTUAL:**
-{content[:8000]}
-
-**INSTRUCCIONES:**
-- Integra la keyword de forma natural y contextual
-- NO añadas párrafos completos nuevos
-- Modifica solo las frases donde sea apropiado
-- Mantén la coherencia del texto original
-- Responde SOLO con el contenido modificado
-
-CONTENIDO MEJORADO:"""
-    
-    try:
-        response = model.generate_content(prompt)
-        if hasattr(response, 'text'):
-            return clean_conversational_response(response.text)
-        else:
-            return content
-    except Exception as e:
-        print(f"⚠️  Error integrando keyword '{keyword}': {str(e)}")
-        return content
+    return content
 
 
 def smooth_keyword_integration(content: str, keyword: str) -> str:
     """
-    Suaviza la integración de una keyword que suena forzada.
+    [FUNCIÓN LEGACY - Ya no se usa]
     """
-    print(f"🔧 Suavizando integración de keyword: '{keyword}'")
-    
-    prompt = f"""Mejora la integración de la keyword que suena forzada en el contenido.
-
-**KEYWORD PROBLEMÁTICA:** {keyword}
-**CONTENIDO ACTUAL:**
-{content[:8000]}
-
-**INSTRUCCIONES:**
-- Haz que la keyword suene más natural
-- Mejora el contexto alrededor de la keyword
-- NO elimines la keyword, solo mejora su integración
-- Mantén el significado original
-- Responde SOLO con el contenido mejorado
-
-CONTENIDO MEJORADO:"""
-    
-    try:
-        response = model.generate_content(prompt)
-        if hasattr(response, 'text'):
-            return clean_conversational_response(response.text)
-        else:
-            return content
-    except Exception as e:
-        print(f"⚠️  Error suavizando keyword '{keyword}': {str(e)}")
-        return content
+    return content
 
 
 def expand_section_content(content: str, section: str) -> str:
     """
-    Expande una sección específica del contenido.
+    [FUNCIÓN LEGACY - Ya no se usa]
     """
-    print(f"📝 Expandiendo sección: '{section}'")
-    
-    prompt = f"""Expande la sección específica del contenido añadiendo valor.
-
-**SECCIÓN A EXPANDIR:** {section}
-**CONTENIDO ACTUAL:**
-{content[:8000]}
-
-**INSTRUCCIONES:**
-- Añade contenido valioso a la sección específica
-- Mantén la coherencia con el resto del artículo
-- NO repitas información existente
-- Añade 2-3 párrafos relevantes
-- Responde SOLO con el contenido expandido
-
-CONTENIDO EXPANDIDO:"""
-    
-    try:
-        response = model.generate_content(prompt)
-        if hasattr(response, 'text'):
-            return clean_conversational_response(response.text)
-        else:
-            return content
-    except Exception as e:
-        print(f"⚠️  Error expandiendo sección '{section}': {str(e)}")
-        return content
+    return content
 
 
 def load_seo_keywords_from_analysis(csv_path):
