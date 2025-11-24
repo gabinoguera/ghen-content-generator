@@ -1177,11 +1177,37 @@ No incluyas explicaciones, solo el markdown del artículo mejorado."""
             print(f"   Inicio original: {original_start[:100]}...")
             return article_content
         
+        # VALIDACIÓN 6: Detectar si el artículo fue regenerado completo (cambios < 5%)
+        # Un cambio quirúrgico real debería modificar ~5-15% del contenido
+        change_percent = abs((len(improved) - len(article_content)) / len(article_content) * 100)
+        if change_percent < 1.0:
+            print(f"⚠️  ADVERTENCIA: Cambios muy mínimos ({change_percent:.1f}%)")
+            print("   Esto podría indicar que Gemini regeneró el artículo en lugar de aplicar mejoras")
+            print("   Comparando similitud estructural...")
+            
+            # Comparar párrafos únicos para detectar regeneración
+            original_paragraphs = set([p.strip() for p in article_content.split('\n\n') if len(p.strip()) > 50])
+            improved_paragraphs = set([p.strip() for p in improved.split('\n\n') if len(p.strip()) > 50])
+            
+            matching_paragraphs = len(original_paragraphs & improved_paragraphs)
+            total_paragraphs = len(original_paragraphs)
+            similarity = (matching_paragraphs / total_paragraphs * 100) if total_paragraphs > 0 else 0
+            
+            print(f"   📊 Similitud de párrafos: {similarity:.1f}% ({matching_paragraphs}/{total_paragraphs} idénticos)")
+            
+            if similarity > 95:
+                print("   ❌ RECHAZADO: Artículo prácticamente idéntico (>{similarity:.0f}% similar)")
+                print("   El QA sugirió mejoras pero Gemini no las aplicó significativamente")
+                return article_content
+            else:
+                print(f"   ✅ Cambios sutiles pero detectables ({100-similarity:.1f}% modificado)")
+        
         # Validaciones pasadas ✅
         print("✅ Mejoras aplicadas quirúrgicamente y validadas")
         print(f"   📏 Longitud: {len(article_content)} → {len(improved)} chars ({len(improved)/len(article_content)*100:.1f}%)")
         print(f"   📑 Secciones: {len(original_h2_titles)} → {len(improved_h2_titles)} (preservadas)")
         print(f"   ✅ Inicio del artículo preservado")
+        print(f"   📝 Cambio de contenido: {change_percent:.1f}%")
         return improved
             
     except Exception as e:
@@ -2097,6 +2123,8 @@ def generate_featured_image_prompt(article_text, article_title):
     """
     Genera un prompt optimizado para crear una imagen destacada del artículo usando Gemini.
     
+    Analiza el artículo completo para extraer conceptos clave y crear un prompt visual único.
+    
     Args:
         article_text (str): Texto completo del artículo
         article_title (str): Título del artículo
@@ -2106,42 +2134,89 @@ def generate_featured_image_prompt(article_text, article_title):
     """
     try:
         print("🎨 Generando prompt para imagen destacada...")
+        print("   📊 Analizando artículo completo para extraer conceptos visuales...")
         
-        # Extraer primeros párrafos del artículo (contexto clave)
-        article_preview = article_text[:1500]
+        # PASO 1: Extraer conceptos clave del artículo completo (no solo inicio)
+        concept_extraction_prompt = f"""Analiza este artículo técnico y extrae los conceptos visuales clave para crear una imagen destacada única.
+
+**ARTÍCULO COMPLETO:**
+{article_text[:5000]}
+
+**TAREA:** Identifica 3-5 elementos visuales específicos que caracterizan ESTE artículo en particular.
+
+**Busca:**
+- Tecnologías específicas mencionadas (frameworks, herramientas, plataformas)
+- Metáforas o analogías usadas en el texto
+- Arquitecturas o diagramas conceptuales implícitos
+- Flujos de trabajo o procesos descritos
+- Problemas y soluciones específicas
+
+**Formato de respuesta (3-5 bullets):**
+• Concepto visual 1: [descripción corta]
+• Concepto visual 2: [descripción corta]
+• Concepto visual 3: [descripción corta]
+
+Responde SOLO con los bullets, sin introducción."""
+
+        print("   🔍 Extrayendo conceptos clave...")
+        concepts_response = model.generate_content(concept_extraction_prompt)
+        time.sleep(CONFIG["api_delay"])
         
-        prompt_generation_request = f"""Eres un diseñador gráfico experto especializado en crear imágenes destacadas para artículos técnicos de tecnología, IA y desarrollo.
+        key_concepts = concepts_response.text.strip()
+        print(f"   ✅ Conceptos extraídos:\n{key_concepts}\n")
+        
+        # PASO 2: Generar prompt visual específico basado en conceptos
+        prompt_generation_request = f"""Eres un prompt engineer experto para modelos de generación de imágenes.
 
-**Artículo:**
-Título: {article_title}
+**ARTÍCULO:** {article_title}
 
-Contenido (extracto):
-{article_preview}
+**CONCEPTOS CLAVE EXTRAÍDOS DEL ARTÍCULO:**
+{key_concepts}
 
-**Tarea:** Genera un prompt EN INGLÉS optimizado para Imagen 3 (modelo de generación de imágenes) que cree una imagen destacada profesional y atractiva para este artículo.
+**TAREA:** Crea un prompt EN INGLÉS para Imagen 3 que genere una imagen destacada ÚNICA para este artículo.
 
-**Requisitos del prompt:**
-1. Estilo visual: Moderno, profesional, tech-oriented
-2. Elementos clave: Representar el tema principal del artículo visualmente
-3. Colores: Esquema tech (azules, violetas, verdes neón, gradientes)
-4. Evitar: Texto en la imagen, logos específicos, rostros humanos identificables
-5. Formato: Horizontal 16:9 (ideal para WordPress featured image)
-6. Atmósfera: Innovadora, futurista pero accesible
+**ESTRUCTURA DEL PROMPT:**
+1. Scene description: Describe la escena principal basada en los conceptos clave
+2. Visual elements: Elementos visuales específicos (no genéricos)
+3. Style: "Modern tech illustration, professional, digital art"
+4. Colors: Esquema de color específico al tema (no siempre azul/violeta)
+5. Composition: "16:9 aspect ratio, hero image composition"
+6. Technical specs: "High quality, sharp details, clean design"
 
-**Instrucciones:**
-- Máximo 100 palabras
-- Lenguaje descriptivo y específico
-- Enfócate en conceptos visuales abstractos o metáforas visuales del tema técnico
-- NO incluyas explicaciones, solo el prompt directo
+**EJEMPLOS DE TRANSFORMACIÓN:**
 
-Genera SOLO el prompt en inglés, sin introducción ni comentarios."""
+❌ GENÉRICO (evitar):
+"Modern AI technology with neural networks and blue gradients"
 
+✅ ESPECÍFICO (objetivo):
+"Architectural diagram showing agentic workflow with ReAct pattern nodes, tool integration layers, and feedback loops, isometric view, purple-orange gradient, minimal style"
+
+"MLOps pipeline visualization with model versioning branches, automated testing gates, and deployment stages, technical blueprint style, emerald green accents on dark background"
+
+"Newsletter content transformation into structured article format, visual metaphor of information flowing through analysis filters, teal and amber color scheme, abstract geometric style"
+
+**REGLAS CRÍTICAS:**
+- USA los conceptos específicos extraídos, no plantillas genéricas
+- Colores según el tema (MLOps = verde/azul, LLMs = violeta/rosa, Cloud = azul/gris, DevOps = naranja/rojo)
+- Menciona arquitecturas/diagramas SI el artículo es técnico
+- Menciona flujos/procesos SI el artículo es de workflow
+- Máximo 120 palabras
+- NO incluyas texto, logos, o rostros
+- Lenguaje descriptivo para Imagen 3 (no DALL-E)
+
+Genera SOLO el prompt en inglés, sin explicaciones."""
+
+        print("   🎨 Generando prompt visual específico...")
         response = model.generate_content(prompt_generation_request)
         time.sleep(CONFIG["api_delay"])
         
         generated_prompt = response.text.strip()
         
-        print(f"✅ Prompt generado: {generated_prompt[:80]}...")
+        # Limpiar posibles comillas o marcadores de código
+        generated_prompt = generated_prompt.strip('"\'`')
+        
+        print(f"\n✅ Prompt generado ({len(generated_prompt)} chars):")
+        print(f"   {generated_prompt[:150]}...")
         
         return generated_prompt
         
