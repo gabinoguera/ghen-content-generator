@@ -187,15 +187,17 @@ def get_newsletter_by_message_id(service, message_id):
         return None
 
 
-def list_newsletters(service, sender_filter=None, subject_filter=None, max_results=10):
+def list_newsletters(service, sender_filter=None, subject_filter=None, max_results=10, only_primary=True):
     """
     Lista newsletters recientes (opcionalmente filtrados)
     
     Args:
         service: Servicio de Gmail API
         sender_filter: Email del remitente para filtrar (e.g., 'newsletter@substack.com')
+                      Puede ser una lista de remitentes: ['sender1@domain.com', 'sender2@domain.com']
         subject_filter: Texto que debe aparecer en el asunto
         max_results: Número máximo de resultados (default: 10)
+        only_primary: Si True, busca solo en bandeja Principal (excluye Promociones, Social, etc.)
     
     Returns:
         list: Lista de dicts con info básica de newsletters
@@ -204,19 +206,42 @@ def list_newsletters(service, sender_filter=None, subject_filter=None, max_resul
         # Construir query de búsqueda
         query_parts = []
         
+        # Filtro por remitente (puede ser único o lista)
         if sender_filter:
-            query_parts.append(f'from:{sender_filter}')
+            if isinstance(sender_filter, list):
+                # Múltiples remitentes: (from:sender1 OR from:sender2)
+                sender_queries = ' OR '.join([f'from:{s}' for s in sender_filter])
+                query_parts.append(f'({sender_queries})')
+            else:
+                # Remitente único
+                query_parts.append(f'from:{sender_filter}')
         
         if subject_filter:
             query_parts.append(f'subject:{subject_filter}')
         
-        # Si no hay filtros, buscar en categorías típicas de newsletters
-        if not query_parts:
-            query_parts.append('(category:updates OR category:promotions OR label:newsletters)')
+        # Filtro por casilla Principal (excluye Promociones, Social, Forums)
+        if only_primary:
+            query_parts.append('category:primary')
+        else:
+            # Si no hay filtros específicos, buscar en categorías típicas de newsletters
+            if not sender_filter and not subject_filter:
+                query_parts.append('(category:updates OR category:promotions OR label:newsletters)')
         
         query = ' '.join(query_parts)
         
-        print(f"🔍 Buscando newsletters con query: {query}")
+        # Mensaje informativo
+        if only_primary:
+            print(f"🔍 Buscando en BANDEJA PRINCIPAL (excluye Promociones/Social)")
+        else:
+            print(f"🔍 Buscando en TODAS las bandejas")
+        
+        if sender_filter:
+            if isinstance(sender_filter, list):
+                print(f"📧 Filtrando por remitentes: {', '.join(sender_filter)}")
+            else:
+                print(f"📧 Filtrando por remitente: {sender_filter}")
+        
+        print(f"💡 Query completa: {query}\n")
         
         # Buscar mensajes
         results = service.users().messages().list(
