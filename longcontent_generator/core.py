@@ -1636,42 +1636,40 @@ load_ghen_context = load_leo_context
 
 def build_system_prompt(leo_context):
     """
-    Construye el system prompt para Gemini con el contexto de GHEN.
+    Construye contexto adicional para el prompt (complementa system_instruction de config.py).
+    
+    NOTA: La personalidad base está definida como system_instruction en config.py.
+    Esta función añade contexto adicional solo cuando se usa nivel "full".
     
     Args:
         leo_context (dict): Diccionario con el contexto de GHEN (personalidad técnica)
     
     Returns:
-        str: System prompt completo
+        str: Contexto adicional (vacío si es nivel base, completo si es full)
     """
-    system_prompt = f"""Eres el sistema de generación de contenido técnico para GHEN Digital. 
+    # Si es nivel base, la personalidad ya está en system_instruction
+    # Solo añadimos contexto adicional si es nivel "full"
+    if leo_context.get('level') == 'base':
+        return ""  # System instruction ya tiene la personalidad base
+    
+    # Nivel "full": añadir contexto de proyectos y experiencia personal
+    additional_context = f"""
+# CONTEXTO ADICIONAL (Nivel Full)
 
-# TU PERSONALIDAD Y FORMA DE COMUNICAR
+{leo_context.get('project', '')}
 
-{leo_context['personality']}
+# AUDIENCIA ESPECÍFICA
 
-# CONTEXTO ADICIONAL DEL PROYECTO
+{leo_context.get('audience', '')}
 
-{leo_context['project'] if leo_context['project'] else 'GHEN Digital es la marca personal de Gabriel Noguera, consultor de IA y desarrollador especializado en GenAI, MLOps y arquitecturas cloud-native.'}
-
-# AUDIENCIA OBJETIVO
-
-{leo_context['audience'] if leo_context['audience'] else 'Desarrolladores, CTOs, consultores de IA, arquitectos cloud e ingenieros ML que buscan contenido técnico práctico y basado en experiencia real.'}
-
-# TU ROL
-
-Tu función es crear contenido técnico de alta calidad para profesionales tech que:
-- Sea práctico y basado en código real, arquitecturas probadas
-- Incluya ejemplos ejecutables, comandos, y snippets completos
-- Explique conceptos complejos de forma clara sin oversimplificar
-- Se base en experiencia real de proyectos (hackathons, consultoría, producción)
-- Se enfoque en resultados medibles: ROI, métricas, trade-offs
-- Esté actualizado con el ecosistema de GenAI/LLMs/MLOps
-
-Recuerda los 5 pilares: Técnico y Práctico, Pedagógico y Claro, Experiencial, Orientado a Resultados, Actualizado.
+# EXPERIENCIA PERSONAL AUTORIZADA
+En el nivel "full", puedes hacer referencias a experiencia personal cuando sea relevante:
+- Proyectos de consultoría, hackathons, implementaciones reales
+- Primera persona en lecciones aprendidas y retrospectivas
+- Stack tecnológico preferido con justificación técnica
 """
     
-    return system_prompt
+    return additional_context
 
 
 def suggest_keyword_from_topic(topic, leo_context=None):
@@ -1835,71 +1833,57 @@ def generate_article_with_context(keyword, context_sources, leo_context=None):
         # Prompt especializado para artículos de Actualidad y Tendencias
         prompt = f"""Genera un artículo técnico profesional sobre: "{keyword}"
 
-# Contexto: Newsletter y Análisis
+## Contexto: Newsletter y Análisis
 
 {combined_context[:12000]}
 
-# Instrucciones
+## Instrucciones
 
-Crea un artículo de actualidad técnica dirigido a **desarrolladores, arquitectos y CTOs**, basado en el contenido del newsletter.
+Crea un artículo de actualidad técnica basado en el contenido del newsletter.
 
-**El artículo debe:**
-- Sintetizar las tendencias técnicas clave mencionadas
-- Analizar implicaciones prácticas para entornos de producción
-- Tener entre 1500-2000 palabras
-- Incluir un título atractivo que capte la relevancia técnica (IMPORTANTE: capitalización correcta en español - solo primera palabra y nombres propios con mayúscula)
-- Usar subtítulos claros (H2, H3) para organizar conceptos
-- Mencionar ejemplos concretos del newsletter cuando sea relevante
-- Mantener tono técnico, práctico y orientado a resultados
-- Incluir insights aplicables (arquitectura, código, decisiones de diseño)
-- Terminar con conclusión sobre impacto en desarrollo/ingeniería
+**Requisitos:**
+- 1500-2000 palabras
+- Sintetiza las tendencias técnicas clave
+- Analiza implicaciones prácticas para producción
+- Incluye insights aplicables (arquitectura, código, decisiones)
+- Termina con conclusión sobre impacto técnico
 
-**Importante sobre formato de títulos en español:** 
-- Solo la primera palabra y los nombres propios llevan mayúscula inicial
-- CORRECTO: "Grok 4.1 en la carrera de los LLMs: análisis técnico de un contendiente serio"
-- INCORRECTO: "Grok 4.1 En La Carrera De Los LLMs: Análisis Técnico De Un Contendiente Serio"
-- NO incluyas meta-comentarios sobre "personalidades" o "instrucciones recibidas"
-- Empieza DIRECTAMENTE con el título del artículo (# Título)
-- No copies textualmente el newsletter - analiza, sintetiza y añade perspectiva técnica
-- Escribe desde la perspectiva de un consultor técnico experimentado
+**Formato:**
+- Empieza DIRECTAMENTE con # Título (sin meta-comentarios)
+- Usa ## y ### para organizar secciones
+- No copies textualmente - analiza y añade perspectiva
 
-Formato en Markdown."""
+Formato: Markdown"""
     else:
         # Prompt estándar para artículos basados en investigación
         prompt = f"""Genera un artículo técnico completo sobre: "{keyword}"
 
-# Contexto de Investigación
+## Contexto de Investigación
 
 {combined_context[:10000]}
 
-# Instrucciones
+## Instrucciones
 
-**El artículo debe:**
-- Ser original y estar escrito en español
-- Tener entre 1500-2000 palabras
-- Empezar DIRECTAMENTE con el título (# Título) - sin meta-comentarios
-- Incluir un título técnico atractivo y optimizado (IMPORTANTE: capitalización correcta en español - solo primera palabra y nombres propios con mayúscula)
-- Tener una estructura clara con subtítulos (H2, H3)
-- Ser valioso para desarrolladores, arquitectos y CTOs
-- Incluir ejemplos de código o arquitectura cuando sea relevante
-- Mantener un tono técnico, práctico y orientado a resultados
-- Terminar con conclusión sobre implicaciones prácticas
+**Requisitos:**
+- 1500-2000 palabras en español
+- Incluye ejemplos de código o arquitectura cuando sea relevante
+- Termina con conclusión sobre implicaciones prácticas
 
-**Importante sobre formato de títulos en español:**
-- Solo la primera palabra y los nombres propios llevan mayúscula inicial
-- CORRECTO: "Arquitectura de agentes ReAct con LangGraph: implementación práctica"
-- INCORRECTO: "Arquitectura De Agentes ReAct Con LangGraph: Implementación Práctica"
-- NO incluyas reflexiones internas o meta-comentarios
-- Escribe desde la perspectiva de un consultor técnico experimentado
-- Enfócate en aplicabilidad práctica y decisiones de arquitectura
+**Formato:**
+- Empieza DIRECTAMENTE con # Título (sin meta-comentarios)
+- Usa ## y ### para estructura clara
 
-Formato en Markdown."""
+Formato: Markdown"""
 
     try:
-        full_prompt = f"{system_prompt}\n\n{prompt}"
+        # Si hay contexto adicional (nivel full), añadirlo al prompt
+        if system_prompt:
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+        else:
+            full_prompt = prompt
         
         article_type = "actualidad" if is_newsletter_based else "investigación"
-        print(f"🎨 Generando artículo de {article_type} con contexto LEO...")
+        print(f"🎨 Generando artículo de {article_type}...")
         response = model.generate_content(full_prompt)
         
         article = response.text
