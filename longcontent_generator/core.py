@@ -1008,10 +1008,18 @@ SUGERENCIAS DE ARTÍCULOS:
         return f"Error al generar sugerencias: {str(e)}"
 
 
-def improve_article_based_on_qa(article_content: str, qa_report: str) -> str:
+def improve_article_based_on_qa(
+    article_content: str, 
+    qa_report: str,
+    context_sources: list = None,
+    ghen_context: dict = None
+) -> str:
     """
     Mejora el artículo aplicando las observaciones del QA de forma quirúrgica.
     Solo modifica las áreas específicas identificadas por el análisis QA.
+    
+    FASE 1 (ya ejecutada): QA ciego evaluó calidad objetivamente
+    FASE 2 (esta función): Mejoras quirúrgicas CON contexto para preservar precisión técnica
     
     IMPORTANTE: No regenera el artículo completo, solo aplica mejoras específicas
     preservando el contenido original intacto.
@@ -1019,6 +1027,8 @@ def improve_article_based_on_qa(article_content: str, qa_report: str) -> str:
     Args:
         article_content: Contenido actual del artículo
         qa_report: Reporte QA con observaciones específicas
+        context_sources: Fuentes originales (newsletter/artículos) para verificar precisión
+        ghen_context: Contexto de personalidad GHEN para mantener tono
     
     Returns:
         str: Artículo mejorado con las correcciones aplicadas
@@ -1027,10 +1037,17 @@ def improve_article_based_on_qa(article_content: str, qa_report: str) -> str:
         return article_content
     
     print("🔧 Aplicando mejoras basadas en análisis QA...")
-    print("⚠️  MODO QUIRÚRGICO: Solo se modificarán las secciones específicas mencionadas en el QA\n")
+    print("⚠️  MODO QUIRÚRGICO: Solo se modificarán las secciones específicas mencionadas en el QA")
+    print("📚 Contexto disponible para precisión técnica: {}".format("Sí" if context_sources else "No"))
+    print("🎭 Personalidad GHEN disponible: {}\n".format("Sí" if ghen_context else "No"))
     
     # Usar Gemini para aplicar mejoras de forma inteligente y quirúrgica
-    improved_content = apply_qa_improvements_surgical(article_content, qa_report)
+    improved_content = apply_qa_improvements_surgical(
+        article_content, 
+        qa_report,
+        context_sources=context_sources,
+        ghen_context=ghen_context
+    )
     
     # Validar que el contenido mejorado no sea el análisis del newsletter
     if "## Resumen Ejecutivo" in improved_content and "## Puntos Clave" in improved_content:
@@ -1055,72 +1072,187 @@ def improve_article_based_on_qa(article_content: str, qa_report: str) -> str:
     return improved_content
 
 
-def apply_qa_improvements_surgical(article_content: str, qa_report: str) -> str:
+def apply_qa_improvements_surgical(
+    article_content: str, 
+    qa_report: str,
+    context_sources: list = None,
+    ghen_context: dict = None
+) -> str:
     """
     Aplica mejoras del QA de forma quirúrgica usando Gemini (versión robusta con validaciones).
     
     CRÍTICO: No regenera el artículo, solo aplica las mejoras específicas del QA.
+    FASE 2: Tiene acceso al contexto original para mantener precisión técnica.
     
     Validaciones implementadas:
     - Detecta si Gemini regeneró contenido incorrecto (newsletter analysis)
     - Valida que la longitud sea similar al original (±30%)
-    - Verifica que preserve secciones principales del artículo
+    - Verifica que preserve secciones principales del artículo (>70%)
     - Detecta cambios de tema o estructura
+    - Valida longitud mínima absoluta (>2000 chars)
+    - Verifica preservación del inicio del artículo
     
     Args:
         article_content: Artículo original completo
         qa_report: Reporte QA con recomendaciones específicas
+        context_sources: Fuentes originales para verificar precisión técnica
+        ghen_context: Personalidad GHEN para mantener tono
     
     Returns:
         str: Artículo con mejoras aplicadas quirúrgicamente, o artículo original si falla validación
     """
-    print("🔬 Aplicando mejoras quirúrgicas con Gemini...\n")
+    print("🔬 Aplicando mejoras quirúrgicas con Gemini...")
+    print("📚 Usando contexto original para mantener precisión técnica\n")
     
     # Extraer títulos principales del artículo original para validación
     import re
     original_h2_titles = re.findall(r'^##\s+([^\n]+)', article_content, re.MULTILINE)
     
+    # Preparar contexto condensado (primeros 2000 chars de cada fuente)
+    context_preview = ""
+    if context_sources:
+        context_preview = "\n\n---\n\n".join(
+            [source[:2000] + "..." for source in context_sources[:2]]
+        )
+    
+    # Preparar personalidad GHEN
+    personality_preview = ""
+    if ghen_context and ghen_context.get('personality'):
+        personality_preview = ghen_context['personality'][:1000]
+    
     prompt = f"""Eres un editor técnico experto. Tu tarea es aplicar ÚNICAMENTE las mejoras específicas mencionadas en el reporte QA al artículo existente.
 
-## REPORTE QA CON MEJORAS A APLICAR:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## CONTEXTO DISPONIBLE (para mantener precisión técnica)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### FUENTES ORIGINALES (newsletter/artículos):
+{context_preview if context_preview else "No disponible"}
+
+### PERSONALIDAD GHEN (tono y voz):
+{personality_preview if personality_preview else "No disponible"}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## REPORTE QA CON MEJORAS A APLICAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 {qa_report}
 
-## ARTÍCULO ORIGINAL COMPLETO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## ARTÍCULO ORIGINAL COMPLETO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 {article_content}
 
-## INSTRUCCIONES CRÍTICAS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## INSTRUCCIONES CRÍTICAS - CAMBIOS MÍNIMOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### REGLA DE ORO: PRESERVA EL 95% DEL CONTENIDO ORIGINAL
 
 1. **NO REGENERES EL ARTÍCULO** - Solo aplica las mejoras específicas mencionadas en el QA
-2. **PRESERVA TODO** - Mantén intactos los párrafos, secciones y contenido que NO necesitan cambios
-3. **MODIFICACIONES QUIRÚRGICAS** - Si el QA dice "mejorar tono en sección X", solo modifica esa sección X
-4. **MANTÉN ESTRUCTURA** - No cambies el orden de secciones, títulos (## headers) o la estructura general
-5. **SOLO LAS MEJORAS DEL QA** - No agregues contenido nuevo que no esté en las recomendaciones
-6. **MISMO TEMA** - El artículo mejorado debe tratar EXACTAMENTE el mismo tema que el original
-7. **KEYWORDS FALTANTES** - Si el QA menciona keywords ❌, intégralas naturalmente en contexto apropiado
-8. **KEYWORDS FORZADAS** - Si el QA menciona keywords ⚠️, suaviza su integración actual
-9. **NO CAMBIES FORMATO** - No conviertas el artículo en resumen ejecutivo, newsletter, o análisis
+2. **CAMBIOS QUIRÚRGICOS** - Si el QA dice "mejorar transición en párrafo 3 de sección X":
+   - Modifica SOLO ese párrafo específico
+   - Mantén TODOS los demás párrafos EXACTAMENTE iguales (palabra por palabra)
+3. **PRESERVA INFORMACIÓN TÉCNICA** - Mantén todos los detalles técnicos de las fuentes:
+   - Nombres de herramientas (Whisper.cpp, FastAPI, PyAudio, etc.)
+   - Parámetros y configuraciones
+   - Ejemplos de código (si existen)
+   - Cifras y benchmarks
+4. **MANTÉN ESTRUCTURA EXACTA** - No cambies:
+   - Títulos de sección (## headers)
+   - Orden de secciones
+   - Longitud general del artículo (±5%)
+5. **RESPETA PERSONALIDAD GHEN** - Si existe contexto de personalidad:
+   - Mantén primera persona en experiencias ("En mi experiencia...")
+   - Preserva referencias a proyectos específicos
+   - Mantén tono técnico-pedagógico
+6. **KEYWORDS**: 
+   - Si QA menciona keywords ❌ faltantes: intégralas en 1-2 frases nuevas
+   - Si QA menciona keywords ⚠️ forzadas: suaviza SOLO esas menciones específicas
+   - NO elimines keywords que el QA no mencionó
+7. **MISMO TEMA Y LONGITUD** - El artículo mejorado debe:
+   - Tratar EXACTAMENTE el mismo tema
+   - Tener longitud similar (diferencia máxima ±10%)
+   - Mantener todas las secciones originales
 
-## EJEMPLOS DE MODIFICACIONES QUIRÚRGICAS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## EJEMPLOS CONCRETOS DE MODIFICACIONES QUIRÚRGICAS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-❌ INCORRECTO: Regenerar todo el artículo con nuevo contenido
-✅ CORRECTO: Modificar solo las 2-3 frases específicas mencionadas en el QA
+### CASO 1: QA dice "Mejorar transición en sección 'Optimización'"
 
-❌ INCORRECTO: Cambiar párrafos que el QA no mencionó
-✅ CORRECTO: Preservar párrafos intactos si no hay recomendaciones sobre ellos
+❌ INCORRECTO (regenera toda la sección):
+Reescribir los 5 párrafos de la sección "Optimización" con nuevo contenido
 
-❌ INCORRECTO: Reemplazar el artículo con un análisis o resumen
-✅ CORRECTO: Aplicar las mejoras de tono/estilo/repeticiones mencionadas en el QA
+✅ CORRECTO (cambio quirúrgico):
+Modificar SOLO la frase de transición al inicio de la sección.
+Ejemplo: "Ahora veamos..." → "Estos conceptos nos llevan a considerar..."
+MANTENER los otros 4 párrafos EXACTAMENTE iguales.
 
-❌ INCORRECTO: Añadir secciones como "## Resumen Ejecutivo" o "## Puntos Clave"
-✅ CORRECTO: Mantener los títulos de sección originales (## headers) exactamente iguales
+### CASO 2: QA dice "Reducir repetición de 'cuantización' (aparece 4 veces)"
 
-❌ INCORRECTO: Cambiar el tema del artículo
-✅ CORRECTO: Mantener el mismo tema y mejorar solo lo que el QA indica
+❌ INCORRECTO:
+Reescribir los párrafos donde aparece "cuantización"
 
-## TU RESPUESTA:
+✅ CORRECTO:
+Reemplazar 2 de las 4 menciones con sinónimos:
+- "cuantización" → "reducción de precisión" (1 vez)
+- "cuantización" → "optimización" (1 vez)
+- Mantener "cuantización" en las otras 2 menciones
+DEJAR el resto del texto INTACTO.
 
-Devuelve SOLO el artículo mejorado completo (con TODAS las secciones originales preservadas + las mejoras del QA aplicadas). 
-No incluyas explicaciones, solo el markdown del artículo mejorado."""
+### CASO 3: QA dice "Integrar keyword faltante: 'edge computing'"
+
+❌ INCORRECTO:
+Reescribir múltiples secciones para forzar la keyword
+
+✅ CORRECTO:
+Añadir 1 frase natural en una sección apropiada:
+"Este enfoque de edge computing permite latencias mínimas."
+MANTENER todo lo demás SIN CAMBIOS.
+
+### CASO 4: QA dice "Mejorar narrativa en lista de bullets de sección X"
+
+❌ INCORRECTO:
+Reescribir toda la sección X desde cero
+
+✅ CORRECTO:
+Convertir los 5 bullets en 2 párrafos narrativos, manteniendo:
+- TODA la información técnica de los bullets
+- El orden lógico original
+- Los ejemplos y cifras mencionadas
+MANTENER las otras secciones EXACTAMENTE iguales.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## LO QUE NUNCA DEBES HACER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ Regenerar el artículo completo
+❌ Cambiar el tema del artículo
+❌ Añadir secciones nuevas ("## Resumen Ejecutivo", "## Conclusión")
+❌ Eliminar información técnica de las fuentes originales
+❌ Cambiar títulos de sección (## headers)
+❌ Modificar párrafos que el QA no mencionó
+❌ Reducir significativamente la longitud (>10%)
+❌ Convertir el artículo en resumen/análisis/newsletter
+❌ Eliminar ejemplos de código o cifras específicas
+❌ Cambiar el tono GHEN (si existe en el original)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## TU RESPUESTA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Devuelve SOLO el artículo mejorado completo en formato markdown.
+
+REQUISITOS:
+- Incluye TODAS las secciones originales
+- Aplica ÚNICAMENTE las mejoras específicas del QA
+- Preserva el 95% del contenido original palabra por palabra
+- Mantén longitud similar (±5%)
+- No incluyas explicaciones, solo el artículo
+
+COMIENZA AHORA con el artículo mejorado:"""
 
     try:
         time.sleep(CONFIG["api_delay"])
@@ -2123,7 +2255,8 @@ def generate_featured_image_prompt(article_text, article_title):
     """
     Genera un prompt optimizado para crear una imagen destacada del artículo usando Gemini.
     
-    Analiza el artículo completo para extraer conceptos clave y crear un prompt visual único.
+    ENFOQUE: Metáforas visuales creativas, estilos artísticos variados, NO ilustraciones
+    técnicas genéricas tipo "chip con rayitos".
     
     Args:
         article_text (str): Texto completo del artículo
@@ -2132,91 +2265,139 @@ def generate_featured_image_prompt(article_text, article_title):
     Returns:
         str: Prompt optimizado para generación de imagen, o None si falla
     """
+    import random
+    
+    # ESTILOS ARTÍSTICOS CREATIVOS (rotamos para variedad)
+    artistic_styles = [
+        "street art mural style, bold spray paint textures, urban graffiti aesthetic",
+        "vintage science poster from 1960s, retro futurism, paper texture, faded colors",
+        "collage art style, mixed media with cut paper shapes, analog textures",
+        "risograph print style, limited color palette with halftone dots, slight misregistration",
+        "editorial illustration style, bold geometric shapes, magazine cover aesthetic",
+        "woodblock print inspired, strong lines, japanese ukiyo-e influence with modern twist",
+        "surrealist painting style, unexpected juxtapositions, dreamlike quality",
+        "bauhaus design style, primary colors, geometric forms, constructivist influence",
+        "low-poly 3D render style, faceted surfaces, soft gradients, minimal aesthetic",
+        "linocut print style, hand-carved texture, high contrast, folk art influence"
+    ]
+    
+    # PALETAS DE COLOR CREATIVAS (no siempre azul/violeta tech)
+    color_palettes = [
+        "burnt orange, deep teal, and cream",
+        "electric coral, midnight blue, and gold",
+        "sage green, terracotta, and warm white",
+        "hot pink, electric yellow, and black",
+        "dusty rose, navy, and copper",
+        "lime green, purple, and off-white",
+        "rust red, olive green, and sand",
+        "cyan, magenta, and bright yellow",
+        "forest green, burnt sienna, and beige",
+        "indigo, peach, and silver"
+    ]
+    
+    # Seleccionar estilo y paleta (semi-aleatorio pero consistente por artículo)
+    # Usar hash del título para consistencia si se regenera
+    style_seed = hash(article_title) % len(artistic_styles)
+    color_seed = hash(article_title[::-1]) % len(color_palettes)  # reverse para variar
+    
+    selected_style = artistic_styles[style_seed]
+    selected_colors = color_palettes[color_seed]
+    
     try:
         print("🎨 Generando prompt para imagen destacada...")
-        print("   📊 Analizando artículo completo para extraer conceptos visuales...")
+        print(f"   🎭 Estilo seleccionado: {selected_style.split(',')[0]}")
+        print(f"   🎨 Paleta: {selected_colors}")
+        print("   📊 Analizando artículo para crear METÁFORA visual única...\n")
         
-        # PASO 1: Extraer conceptos clave del artículo completo (no solo inicio)
-        concept_extraction_prompt = f"""Analiza este artículo técnico y extrae los conceptos visuales clave para crear una imagen destacada única.
+        # PASO 1: Extraer METÁFORA CONCEPTUAL (no literal)
+        metaphor_prompt = f"""Eres un director creativo de una revista de arte.
 
-**ARTÍCULO COMPLETO:**
-{article_text[:5000]}
+**ARTÍCULO (fragmento):**
+{article_text[:4000]}
 
-**TAREA:** Identifica 3-5 elementos visuales específicos que caracterizan ESTE artículo en particular.
+**TÍTULO:** {article_title}
 
-**Busca:**
-- Tecnologías específicas mencionadas (frameworks, herramientas, plataformas)
-- Metáforas o analogías usadas en el texto
-- Arquitecturas o diagramas conceptuales implícitos
-- Flujos de trabajo o procesos descritos
-- Problemas y soluciones específicas
+**TU TAREA:** Piensa en una METÁFORA VISUAL CREATIVA para este artículo. 
 
-**Formato de respuesta (3-5 bullets):**
-• Concepto visual 1: [descripción corta]
-• Concepto visual 2: [descripción corta]
-• Concepto visual 3: [descripción corta]
+NO quiero representaciones literales de tecnología (nada de chips, circuitos, cables, pantallas brillantes, rayos de luz, robots, cerebros digitales).
 
-Responde SOLO con los bullets, sin introducción."""
+SÍ quiero metáforas usando:
+- Objetos cotidianos transformados (e.g., "tetera sirviendo datos como té")
+- Escenas de la naturaleza reimaginadas (e.g., "bosque donde los árboles son columnas de código")
+- Situaciones absurdas/surrealistas (e.g., "biblioteca donde los libros flotan ordenándose solos")
+- Personajes haciendo actividades inesperadas (e.g., "chef cocinando con ingredientes que son APIs")
+- Máquinas vintage haciendo cosas modernas (e.g., "máquina de escribir antigua generando hologramas")
 
-        print("   🔍 Extrayendo conceptos clave...")
-        concepts_response = model.generate_content(concept_extraction_prompt)
+**EJEMPLOS DE BUENAS METÁFORAS:**
+
+Artículo sobre "RAG y retrieval": 
+→ "Un bibliotecario gigante pescando libros específicos de un océano infinito con una red dorada"
+
+Artículo sobre "MLOps pipelines":
+→ "Una fábrica de caramelos estilo Willy Wonka donde las cintas transportadoras llevan modelos de ML como dulces"
+
+Artículo sobre "Prompt engineering":
+→ "Un director de orquesta dirigiendo instrumentos musicales que son burbujas de chat flotantes"
+
+Artículo sobre "Code execution with MCP":
+→ "Un mago callejero haciendo trucos donde las cartas son fragmentos de código que se transforman en pájaros"
+
+**RESPONDE CON:**
+1. Una descripción de escena metafórica (2-3 oraciones)
+2. El elemento central/protagonista de la imagen
+3. Un detalle pequeño pero memorable
+
+Solo responde con estos 3 puntos, sin introducción."""
+
+        print("   🔍 Extrayendo metáfora creativa...")
+        metaphor_response = model.generate_content(metaphor_prompt)
         time.sleep(CONFIG["api_delay"])
         
-        key_concepts = concepts_response.text.strip()
-        print(f"   ✅ Conceptos extraídos:\n{key_concepts}\n")
+        metaphor = metaphor_response.text.strip()
+        print(f"   ✅ Metáfora extraída:\n{metaphor}\n")
         
-        # PASO 2: Generar prompt visual específico basado en conceptos
-        prompt_generation_request = f"""Eres un prompt engineer experto para modelos de generación de imágenes.
+        # PASO 2: Convertir metáfora en prompt de imagen
+        final_prompt_request = f"""Convierte esta metáfora visual en un prompt de imagen EN INGLÉS.
 
-**ARTÍCULO:** {article_title}
+**METÁFORA CONCEPTUAL:**
+{metaphor}
 
-**CONCEPTOS CLAVE EXTRAÍDOS DEL ARTÍCULO:**
-{key_concepts}
+**ESTILO ARTÍSTICO OBLIGATORIO:**
+{selected_style}
 
-**TAREA:** Crea un prompt EN INGLÉS para Imagen 3 que genere una imagen destacada ÚNICA para este artículo.
+**PALETA DE COLORES OBLIGATORIA:**
+{selected_colors}
 
-**ESTRUCTURA DEL PROMPT:**
-1. Scene description: Describe la escena principal basada en los conceptos clave
-2. Visual elements: Elementos visuales específicos (no genéricos)
-3. Style: "Modern tech illustration, professional, digital art"
-4. Colors: Esquema de color específico al tema (no siempre azul/violeta)
-5. Composition: "16:9 aspect ratio, hero image composition"
-6. Technical specs: "High quality, sharp details, clean design"
+**REGLAS DEL PROMPT:**
+1. Máximo 80 palabras
+2. Describir la ESCENA, no conceptos abstractos
+3. Incluir el ESTILO ARTÍSTICO al final
+4. Incluir los COLORES específicos
+5. Añadir "16:9 aspect ratio, high quality, no text, no logos"
+6. PROHIBIDO: chips, circuitos, código binario, pantallas brillantes, rayos de luz azul, cerebros, robots humanoides
+7. El prompt debe sonar como arte, no como tech
 
-**EJEMPLOS DE TRANSFORMACIÓN:**
+**EJEMPLO DE OUTPUT:**
 
-❌ GENÉRICO (evitar):
-"Modern AI technology with neural networks and blue gradients"
+"A giant clockmaker in a steampunk workshop carefully assembling a pocket watch made of tiny dialogue bubbles, each bubble containing miniature conversations, {selected_style}, color palette of {selected_colors}, 16:9 aspect ratio, high quality, no text, no logos"
 
-✅ ESPECÍFICO (objetivo):
-"Architectural diagram showing agentic workflow with ReAct pattern nodes, tool integration layers, and feedback loops, isometric view, purple-orange gradient, minimal style"
+Genera SOLO el prompt en inglés, sin explicaciones ni comillas."""
 
-"MLOps pipeline visualization with model versioning branches, automated testing gates, and deployment stages, technical blueprint style, emerald green accents on dark background"
-
-"Newsletter content transformation into structured article format, visual metaphor of information flowing through analysis filters, teal and amber color scheme, abstract geometric style"
-
-**REGLAS CRÍTICAS:**
-- USA los conceptos específicos extraídos, no plantillas genéricas
-- Colores según el tema (MLOps = verde/azul, LLMs = violeta/rosa, Cloud = azul/gris, DevOps = naranja/rojo)
-- Menciona arquitecturas/diagramas SI el artículo es técnico
-- Menciona flujos/procesos SI el artículo es de workflow
-- Máximo 120 palabras
-- NO incluyas texto, logos, o rostros
-- Lenguaje descriptivo para Imagen 3 (no DALL-E)
-
-Genera SOLO el prompt en inglés, sin explicaciones."""
-
-        print("   🎨 Generando prompt visual específico...")
-        response = model.generate_content(prompt_generation_request)
+        print("   🎨 Generando prompt visual creativo...")
+        response = model.generate_content(final_prompt_request)
         time.sleep(CONFIG["api_delay"])
         
         generated_prompt = response.text.strip()
         
         # Limpiar posibles comillas o marcadores de código
         generated_prompt = generated_prompt.strip('"\'`')
+        if generated_prompt.startswith('"') or generated_prompt.startswith("'"):
+            generated_prompt = generated_prompt[1:]
+        if generated_prompt.endswith('"') or generated_prompt.endswith("'"):
+            generated_prompt = generated_prompt[:-1]
         
-        print(f"\n✅ Prompt generado ({len(generated_prompt)} chars):")
-        print(f"   {generated_prompt[:150]}...")
+        print(f"\n✅ Prompt creativo generado ({len(generated_prompt)} chars):")
+        print(f"   {generated_prompt[:200]}...")
         
         return generated_prompt
         
