@@ -43,6 +43,14 @@ from .imagen import (
     optimize_image_for_wordpress
 )
 
+from .social import (
+    generate_all_social_posts,
+    generate_twitter_thread,
+    generate_linkedin_post,
+    generate_reddit_post,
+    generate_threads_post,
+)
+
 from .utils import (
     show_generated_files,
     preview_article,
@@ -90,6 +98,13 @@ __all__ = [
     'generate_image_from_prompt',
     'optimize_image_for_wordpress',
     
+    # Social Media Adapters
+    'generate_all_social_posts',
+    'generate_twitter_thread',
+    'generate_linkedin_post',
+    'generate_reddit_post',
+    'generate_threads_post',
+    
     # Utils
     'show_generated_files',
     'preview_article', 
@@ -102,7 +117,7 @@ __all__ = [
     'model'
 ]
 
-print("✅ LongContent Generator v2.3.0 cargado correctamente")
+print("✅ LongContent Generator v2.4.0 cargado correctamente")
 print("📋 Funciones principales disponibles:")
 print("   • google_custom_search() - Búsqueda en Google")
 print("   • scrape_articles_batch() - Scraping de artículos")
@@ -110,9 +125,9 @@ print("   • analyze_articles_batch() - Análisis SEO con Gemini")
 print("   • generate_article_from_outline() - Generación de contenido")
 print("   • qa_article_coverage() - Análisis de calidad")
 print("   • publish_article_from_markdown_cleaned() - Publicación WordPress")
-print("   • extract_newsletter_from_gmail() - 🆕 Leer newsletters desde Gmail")
-print("   • list_gmail_newsletters() - 🆕 Listar newsletters disponibles")
-print("   • add_source_links_to_article() - 🆕 Referencias automáticas")
-print("   • generate_featured_image_prompt() - 🆕 Generar prompt de imagen")
-print("   • generate_image_from_prompt() - 🆕 Generar imagen con Imagen 3")
-print("   • load_ghen_context(level='base|full') - 🎭 Sistema híbrido de personalidad")
+print("   • extract_newsletter_from_gmail() - Leer newsletters desde Gmail")
+print("   • list_gmail_newsletters() - Listar newsletters disponibles")
+print("   • generate_featured_image_prompt() - Generar prompt de imagen")
+print("   • generate_image_from_prompt() - Generar imagen con Imagen 3")
+print("   • generate_all_social_posts() - 🆕 Generar posts para redes sociales")
+print("   • load_ghen_context(level='base|full') - Sistema de personalidad")
