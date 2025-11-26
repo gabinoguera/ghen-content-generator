@@ -1,34 +1,98 @@
-# Environment variables
+# ============================================
+# GHEN Content Generator - .gitignore
+# ============================================
+
+# ============================================
+# CREDENTIALS & SECRETS (CRITICAL)
+# ============================================
 .env
+.env.*
+*.env
 
-# Credentials
-archivo-final-1725284197421-0614f1080f18.json
+# Google Cloud / Gmail OAuth credentials
+credentials.json
+token.pickle
+token.json
+**/token.pickle
+**/credentials.json
 
-# Outputs directory (generated files)
+# Service account keys (any JSON with these patterns)
+*-*-*.json
+client_secret*.json
+*service_account*.json
+*serviceaccount*.json
+ghendigital*.json
+archivo-final*.json
+
+# API keys file
+api_keys.txt
+secrets.txt
+*.pem
+*.key
+
+# ============================================
+# OUTPUTS (Generated content)
+# ============================================
 outputs/*
 !outputs/.gitkeep
 !outputs/README.md
 
-# Virtual environment
+# ============================================
+# PYTHON
+# ============================================
+# Virtual environments
 .venv/
+venv/
+env/
+ENV/
 
-# Python cache
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 
-# macOS
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# ============================================
+# IDE & EDITORS
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================
+# OS FILES
+# ============================================
 .DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
 
+# ============================================
+# PROJECT SPECIFIC
+# ============================================
 # Backup folder
 bk/
+backup/
 
-# GitHub context (keep important docs, exclude summary)
+# GitHub context summary (auto-generated)
 .github/context-summary.md
 
+# Test files (keep test scripts, ignore test outputs)
+test_outputs/
+*.test.md
 
-client_secret_385514742115-gq9sltrud83gdn2fsq4n7kiihbgqur8e.apps.googleusercontent.com.json
-token.pickle
-
-ghendigital-1684402226645-5a3fd4acdc70.json
+# Logs
+*.log
+logs/
