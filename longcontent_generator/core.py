@@ -1012,52 +1012,78 @@ def improve_article_based_on_qa(
     article_content: str, 
     qa_report: str,
     context_sources: list = None,
-    ghen_context: dict = None
+    ghen_context: dict = None,
+    keyword: str = None
 ) -> str:
     """
-    Mejora el artículo aplicando las observaciones del QA de forma quirúrgica.
-    Solo modifica las áreas específicas identificadas por el análisis QA.
+    Mejora el artículo regenerándolo con el feedback del QA incorporado.
     
     FASE 1 (ya ejecutada): QA ciego evaluó calidad objetivamente
-    FASE 2 (esta función): Mejoras quirúrgicas CON contexto para preservar precisión técnica
+    FASE 2 (esta función): Regeneración CON feedback QA incorporado
     
-    IMPORTANTE: No regenera el artículo completo, solo aplica mejoras específicas
-    preservando el contenido original intacto.
+    NUEVO ENFOQUE (v2.5):
+    En lugar de intentar "editar quirúrgicamente" el artículo (lo cual causaba
+    que Gemini lo reescribiera y acortara), ahora regeneramos el artículo
+    pasando el feedback del QA como instrucciones adicionales al generador.
+    
+    Esto mantiene:
+    - La longitud correcta (1500-2000 palabras)
+    - La estructura generada correctamente
+    - El feedback incorporado de forma natural
     
     Args:
         article_content: Contenido actual del artículo
         qa_report: Reporte QA con observaciones específicas
-        context_sources: Fuentes originales (newsletter/artículos) para verificar precisión
+        context_sources: Fuentes originales (newsletter/artículos) para contexto
         ghen_context: Contexto de personalidad GHEN para mantener tono
+        keyword: Keyword principal del artículo (opcional, se extrae del título si no se proporciona)
     
     Returns:
-        str: Artículo mejorado con las correcciones aplicadas
+        str: Artículo regenerado con las mejoras incorporadas
     """
     if not article_content or not qa_report:
         return article_content
     
-    print("🔧 Aplicando mejoras basadas en análisis QA...")
-    print("⚠️  MODO QUIRÚRGICO: Solo se modificarán las secciones específicas mencionadas en el QA")
-    print("📚 Contexto disponible para precisión técnica: {}".format("Sí" if context_sources else "No"))
+    print("🔄 Aplicando mejoras basadas en análisis QA...")
+    print("📝 MODO: Regeneración con feedback incorporado")
+    print("📚 Contexto disponible: {}".format("Sí" if context_sources else "No"))
     print("🎭 Personalidad GHEN disponible: {}\n".format("Sí" if ghen_context else "No"))
     
-    # Usar Gemini para aplicar mejoras de forma inteligente y quirúrgica
-    improved_content = apply_qa_improvements_surgical(
-        article_content, 
-        qa_report,
-        context_sources=context_sources,
-        ghen_context=ghen_context
+    # Extraer keyword del título si no se proporciona
+    if not keyword:
+        lines = article_content.split('\n')
+        for line in lines:
+            if line.startswith('# '):
+                keyword = line[2:].strip()
+                break
+        if not keyword:
+            keyword = "artículo técnico"
+    
+    print(f"🔑 Keyword: {keyword}")
+    
+    # Regenerar artículo con feedback QA
+    improved_content = generate_article_with_qa_feedback(
+        keyword=keyword,
+        context_sources=context_sources if context_sources else [],
+        qa_feedback=qa_report,
+        previous_article=article_content,
+        leo_context=ghen_context
     )
     
-    # Validar que el contenido mejorado no sea el análisis del newsletter
-    if "## Resumen Ejecutivo" in improved_content and "## Puntos Clave" in improved_content:
-        print("❌ ERROR: Gemini regeneró contenido incorrecto (análisis de newsletter)")
+    if not improved_content:
+        print("❌ ERROR: No se pudo regenerar el artículo")
         print("✅ Retornando artículo original sin cambios")
         return article_content
     
-    # Validar longitud mínima (debe ser similar al original)
+    # Validar que el contenido mejorado no sea el análisis del newsletter
+    if "## Resumen Ejecutivo" in improved_content and "## Puntos Clave" in improved_content:
+        print("❌ ERROR: Gemini generó contenido incorrecto (análisis de newsletter)")
+        print("✅ Retornando artículo original sin cambios")
+        return article_content
+    
+    # Validar longitud mínima (el nuevo artículo debe tener al menos 70% del original)
     if len(improved_content) < len(article_content) * 0.7:
-        print(f"❌ ERROR: Contenido mejorado muy corto ({len(improved_content)} vs {len(article_content)} chars)")
+        print(f"❌ ERROR: Contenido regenerado muy corto ({len(improved_content)} vs {len(article_content)} chars)")
         print("✅ Retornando artículo original sin cambios")
         return article_content
     
@@ -1069,6 +1095,14 @@ def improve_article_based_on_qa(
     print(f"\n✅ Artículo mejorado guardado en: {output_file}")
     print(f"📊 Longitud original: {len(article_content)} caracteres")
     print(f"📊 Longitud mejorada: {len(improved_content)} caracteres")
+    
+    # Calcular cambio porcentual
+    change_pct = ((len(improved_content) - len(article_content)) / len(article_content)) * 100
+    if change_pct >= 0:
+        print(f"📈 Cambio: +{change_pct:.1f}% (artículo más extenso)")
+    else:
+        print(f"📉 Cambio: {change_pct:.1f}% (artículo más conciso)")
+    
     return improved_content
 
 
@@ -1801,6 +1835,181 @@ Responde en formato:
         return None
 
 
+def generate_article_with_qa_feedback(
+    keyword: str,
+    context_sources: list,
+    qa_feedback: str,
+    previous_article: str,
+    leo_context: dict = None
+) -> str:
+    """
+    Regenera un artículo incorporando el feedback del análisis QA.
+    
+    Esta función es una alternativa a las mejoras quirúrgicas. En lugar de
+    intentar editar un artículo existente (lo cual causa que Gemini lo reescriba
+    y lo acorte), regeneramos el artículo desde cero pero pasando el feedback
+    del QA como instrucciones adicionales.
+    
+    Ventajas:
+    - El artículo mantiene la longitud correcta (1500-2000 palabras)
+    - La estructura se genera correctamente desde el principio
+    - El feedback del QA se incorpora de forma natural
+    - No hay problemas de "reescritura" involuntaria
+    
+    Args:
+        keyword: Keyword principal del artículo
+        context_sources: Lista de strings con contexto (newsletters, investigación)
+        qa_feedback: Reporte QA con las mejoras sugeridas
+        previous_article: Artículo anterior (para referencia de estructura y contenido)
+        leo_context: Contexto de personalidad GHEN
+    
+    Returns:
+        str: Artículo regenerado con las mejoras incorporadas
+    """
+    if not model:
+        print("❌ Modelo Gemini no configurado")
+        return None
+    
+    # Cargar contexto si no se proporciona
+    if leo_context is None:
+        leo_context = load_leo_context()
+    
+    system_prompt = build_system_prompt(leo_context)
+    
+    # Construir el contexto combinado
+    combined_context = "\n\n---\n\n".join(context_sources) if context_sources else ""
+    
+    # Detectar si es un artículo de actualidad/tendencias
+    is_newsletter_based = any('NEWSLETTER' in source or 'ANÁLISIS DEL NEWSLETTER' in source for source in context_sources) if context_sources else False
+    
+    # Extraer solo las mejoras específicas del QA report
+    qa_improvements = _extract_qa_improvements(qa_feedback)
+    
+    # Extraer el título del artículo anterior para mantener consistencia
+    previous_title = ""
+    if previous_article:
+        lines = previous_article.split('\n')
+        for line in lines:
+            if line.startswith('# '):
+                previous_title = line[2:].strip()
+                break
+    
+    article_type = "actualidad técnica" if is_newsletter_based else "investigación SEO"
+    
+    prompt = f"""Genera un artículo técnico profesional sobre: "{keyword}"
+
+## Tipo de Artículo
+{article_type}
+
+## Contexto de Investigación
+
+{combined_context[:10000] if combined_context else "No hay contexto adicional disponible."}
+
+## IMPORTANTE: Mejoras a Incorporar
+
+El artículo anterior recibió el siguiente feedback de QA que DEBES incorporar en esta nueva versión:
+
+{qa_improvements}
+
+## Referencia del Artículo Anterior
+
+Usa la siguiente estructura y contenido como BASE, pero mejórala según el feedback:
+
+{previous_article[:8000] if previous_article else "No hay artículo anterior."}
+
+## Instrucciones de Generación
+
+**Requisitos OBLIGATORIOS:**
+- 1500-2000 palabras en español
+- {"Usa el título: " + previous_title if previous_title else "Crea un título optimizado para SEO"}
+- Incorpora TODAS las mejoras del feedback QA
+- Mantén la misma estructura general pero mejora las secciones según el feedback
+- Incluye ejemplos de código o arquitectura cuando sea relevante
+- Termina con conclusión sobre implicaciones prácticas
+
+**Formato:**
+- Empieza DIRECTAMENTE con # Título (sin meta-comentarios)
+- Usa ## y ### para estructura clara
+- NO incluyas comentarios sobre los cambios realizados
+- El artículo debe ser autónomo y completo
+
+Formato: Markdown"""
+
+    try:
+        if system_prompt:
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+        else:
+            full_prompt = prompt
+        
+        print(f"🔄 Regenerando artículo con feedback QA incorporado...")
+        print(f"📝 Tipo: {article_type}")
+        print(f"📋 Mejoras QA a incorporar: {len(qa_improvements)} caracteres")
+        
+        response = model.generate_content(full_prompt)
+        article = response.text
+        
+        print(f"✅ Artículo regenerado ({len(article)} caracteres)")
+        return article
+        
+    except Exception as e:
+        print(f"❌ Error al regenerar artículo: {str(e)}")
+        return None
+
+
+def _extract_qa_improvements(qa_report: str) -> str:
+    """
+    Extrae las mejoras específicas del reporte QA, eliminando
+    información redundante y dejando solo las instrucciones accionables.
+    
+    Args:
+        qa_report: Reporte QA completo
+    
+    Returns:
+        str: Mejoras extraídas y limpias
+    """
+    if not qa_report:
+        return "No hay mejoras específicas."
+    
+    improvements = []
+    
+    # Buscar secciones relevantes del QA
+    lines = qa_report.split('\n')
+    in_relevant_section = False
+    current_section = ""
+    
+    relevant_keywords = [
+        'mejora', 'sugerencia', 'recomendación', 'falta', 'añadir',
+        'incluir', 'expandir', 'profundizar', 'debilidad', 'oportunidad',
+        'puntos a mejorar', 'áreas de mejora', 'sugerencias'
+    ]
+    
+    for line in lines:
+        line_lower = line.lower()
+        
+        # Detectar inicio de secciones relevantes
+        if any(kw in line_lower for kw in relevant_keywords):
+            in_relevant_section = True
+            current_section = line
+            improvements.append(line)
+        elif line.startswith('## ') or line.startswith('# '):
+            # Nueva sección principal - evaluar si es relevante
+            in_relevant_section = any(kw in line_lower for kw in relevant_keywords)
+            if in_relevant_section:
+                improvements.append(line)
+        elif in_relevant_section and line.strip():
+            # Continuar añadiendo contenido de sección relevante
+            improvements.append(line)
+        elif line.startswith('- ') and any(kw in line_lower for kw in relevant_keywords):
+            # Bullet points con mejoras
+            improvements.append(line)
+    
+    # Si no encontramos mejoras específicas, usar el reporte completo pero recortado
+    if not improvements:
+        return qa_report[:3000]  # Limitar tamaño
+    
+    return '\n'.join(improvements)
+
+
 def generate_article_with_context(keyword, context_sources, leo_context=None):
     """
     Genera un artículo usando keyword y fuentes de contexto adicionales.
@@ -1830,28 +2039,47 @@ def generate_article_with_context(keyword, context_sources, leo_context=None):
     is_newsletter_based = any('NEWSLETTER' in source or 'ANÁLISIS DEL NEWSLETTER' in source for source in context_sources)
     
     if is_newsletter_based:
-        # Prompt especializado para artículos de Actualidad y Tendencias
-        prompt = f"""Genera un artículo técnico profesional sobre: "{keyword}"
+        # Prompt especializado para artículos de Actualidad y Tendencias desde Newsletter
+        prompt = f"""Genera un artículo técnico profesional basado en el contenido de este newsletter.
 
-## Contexto: Newsletter y Análisis
+## Contenido del Newsletter
 
-{combined_context[:12000]}
+{combined_context[:15000]}
 
-## Instrucciones
+## PASO 1: Análisis del contenido (interno, no incluir en output)
 
-Crea un artículo de actualidad técnica basado en el contenido del newsletter.
+Antes de escribir, analiza el newsletter:
+1. ¿Es una pieza única con un tema central? → Escribe un artículo profundo sobre ese tema
+2. ¿Son múltiples noticias inconexas? → Identifica UN hilo conductor que las conecte
 
-**Requisitos:**
-- 1500-2000 palabras
-- Sintetiza las tendencias técnicas clave
-- Analiza implicaciones prácticas para producción
-- Incluye insights aplicables (arquitectura, código, decisiones)
-- Termina con conclusión sobre impacto técnico
+Si son noticias inconexas, elige UNA de estas estrategias:
+- **Tendencia unificadora**: ¿Qué patrón o tendencia conecta estas noticias? (ej: "La carrera por la eficiencia en modelos", "El auge de los agentes autónomos")
+- **Tema más relevante**: Elige la noticia más significativa y desarróllala en profundidad, mencionando las otras como contexto
+- **Impacto en producción**: Analiza cómo estos desarrollos afectan a equipos que implementan GenAI en producción
 
-**Formato:**
-- Empieza DIRECTAMENTE con # Título (sin meta-comentarios)
-- Usa ## y ### para organizar secciones
-- No copies textualmente - analiza y añade perspectiva
+## PASO 2: Instrucciones de escritura
+
+**Requisitos de coherencia:**
+- El artículo DEBE tener UN tema central claro desde el título hasta la conclusión
+- Cada sección debe contribuir a ese tema central
+- Las transiciones entre secciones deben ser naturales y lógicas
+- NO es un resumen de noticias - es un ANÁLISIS con perspectiva técnica
+
+**Requisitos de formato:**
+- 1500-2000 palabras en español
+- Empieza DIRECTAMENTE con # Título (sin meta-comentarios ni reflexiones)
+- El título debe reflejar el tema central elegido, NO "Actualidad en IA" genérico
+- Usa ## y ### para estructura jerárquica
+- Incluye código o ejemplos de arquitectura cuando añada valor
+- Conclusión con implicaciones prácticas para producción
+
+**Requisitos de calidad:**
+- Añade perspectiva técnica propia, no solo resumas
+- Conecta con conceptos de arquitectura de sistemas, MLOps, o producción
+- Evita listas largas de bullets - prefiere párrafos narrativos
+- Si mencionas herramientas/modelos, explica el "por qué" importa
+
+**Keyword SEO (integrar naturalmente):** "{keyword}"
 
 Formato: Markdown"""
     else:
@@ -2141,6 +2369,222 @@ def clean_article_metatext(article_text):
         print("✅ Meta-texto eliminado del artículo")
     
     return article_text
+
+
+def normalize_code_blocks(article_text: str) -> str:
+    """
+    Normaliza bloques de código en el artículo para renderizado correcto.
+    
+    Problemas que soluciona:
+    1. Bloques de código sin cerrar (añade ``` de cierre)
+    2. Bloques sin especificar lenguaje (detecta e infiere)
+    3. Backticks simples usados para bloques multilínea
+    4. Indentación inconsistente dentro de bloques
+    5. Mezcla de formatos (` vs ```)
+    
+    Args:
+        article_text (str): Texto del artículo con código
+    
+    Returns:
+        str: Artículo con bloques de código normalizados
+    """
+    import re
+    
+    lines = article_text.split('\n')
+    result_lines = []
+    in_code_block = False
+    code_block_lang = None
+    code_block_start = -1
+    fixes_applied = 0
+    
+    # Patrones para detectar lenguajes de programación
+    language_patterns = {
+        'python': [
+            r'^\s*(import |from .+ import |def |class |if __name__|@\w+|print\()',
+            r'^\s*(async def |await |yield |lambda )',
+        ],
+        'javascript': [
+            r'^\s*(const |let |var |function |=>|import .+ from|export |require\()',
+            r'^\s*(async function|\.then\(|\.catch\()',
+        ],
+        'typescript': [
+            r'^\s*(interface |type |:\s*(string|number|boolean|any)\b)',
+        ],
+        'bash': [
+            r'^\s*(\$|#!|pip install|npm |yarn |brew |apt |curl |wget |chmod |mkdir |cd |ls |echo )',
+        ],
+        'sql': [
+            r'^\s*(SELECT |INSERT |UPDATE |DELETE |CREATE |ALTER |DROP |FROM |WHERE |JOIN )',
+        ],
+        'json': [
+            r'^\s*[\{\[]',
+        ],
+        'yaml': [
+            r'^\s*\w+:\s*$',
+            r'^\s*-\s+\w+:',
+        ],
+        'html': [
+            r'^\s*<(!DOCTYPE|html|head|body|div|span|p|a|script|style)',
+        ],
+        'css': [
+            r'^\s*(\.|#|@media|@keyframes)\w+\s*\{',
+        ],
+    }
+    
+    def detect_language(code_lines: list) -> str:
+        """Detecta el lenguaje del bloque de código."""
+        code_text = '\n'.join(code_lines)
+        
+        for lang, patterns in language_patterns.items():
+            for pattern in patterns:
+                if re.search(pattern, code_text, re.MULTILINE | re.IGNORECASE):
+                    return lang
+        
+        # Default a python si no se detecta (más común en artículos técnicos)
+        return 'python'
+    
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        
+        # Detectar inicio de bloque de código
+        if line.strip().startswith('```'):
+            if not in_code_block:
+                # Inicio de bloque
+                in_code_block = True
+                code_block_start = i
+                
+                # Extraer lenguaje si está especificado
+                lang_match = re.match(r'^```(\w+)?', line.strip())
+                code_block_lang = lang_match.group(1) if lang_match and lang_match.group(1) else None
+                
+                result_lines.append(line)
+            else:
+                # Cierre de bloque
+                in_code_block = False
+                
+                # Si el bloque no tenía lenguaje, inferirlo
+                if not code_block_lang:
+                    code_lines = result_lines[code_block_start + 1:]
+                    detected_lang = detect_language(code_lines)
+                    # Actualizar la línea de apertura
+                    result_lines[code_block_start] = f'```{detected_lang}'
+                    fixes_applied += 1
+                
+                result_lines.append(line)
+                code_block_lang = None
+                code_block_start = -1
+        
+        # Detectar código inline multilínea mal formateado (` sin cerrar en la línea)
+        elif not in_code_block and '`' in line:
+            # Contar backticks - si es impar y parece código, podría ser problema
+            backtick_count = line.count('`')
+            
+            # Verificar si hay código inline válido
+            inline_code = re.findall(r'`[^`]+`', line)
+            
+            # Si hay backticks sueltos y la siguiente línea también tiene código
+            if backtick_count % 2 == 1 and i + 1 < len(lines):
+                next_line = lines[i + 1]
+                
+                # Verificar si parece un bloque de código partido
+                if (next_line.strip() and 
+                    not next_line.strip().startswith('#') and
+                    any(char in next_line for char in ['(', ')', '=', '{', '}'])):
+                    
+                    # Buscar hasta encontrar el cierre
+                    code_content = [line]
+                    j = i + 1
+                    found_close = False
+                    
+                    while j < len(lines) and j < i + 20:  # Máximo 20 líneas
+                        if '`' in lines[j]:
+                            code_content.append(lines[j])
+                            found_close = True
+                            break
+                        code_content.append(lines[j])
+                        j += 1
+                    
+                    if not found_close and len(code_content) > 1:
+                        # Convertir a bloque de código
+                        detected_lang = detect_language(code_content)
+                        result_lines.append(f'```{detected_lang}')
+                        for code_line in code_content:
+                            # Limpiar backticks sueltos
+                            clean_line = code_line.replace('`', '')
+                            result_lines.append(clean_line)
+                        result_lines.append('```')
+                        i = j
+                        fixes_applied += 1
+                        i += 1
+                        continue
+            
+            result_lines.append(line)
+        else:
+            # Dentro de un bloque de código - detectar si debería cerrarse
+            if in_code_block:
+                stripped = line.strip()
+                
+                # Detectar encabezados Markdown reales (## Título, ### Subtítulo)
+                # Los headers markdown H2+ son más seguros de detectar (## no se usa en código)
+                # H1 (#) se confunde con comentarios Python, así que solo detectamos ##+ 
+                is_markdown_header = (
+                    line.startswith('##') and  # Solo H2 o mayor (## no es sintaxis de código)
+                    re.match(r'^#{2,6}\s+[A-ZÁÉÍÓÚÑ]', line)  # H2-H6 + espacio + mayúscula
+                )
+                
+                # Detectar párrafo de texto narrativo (no código)
+                # Solo si la línea anterior estaba vacía (patrón de "olvido de cerrar")
+                prev_was_empty = (len(result_lines) > 0 and not result_lines[-1].strip())
+                
+                is_narrative_paragraph = (
+                    prev_was_empty and  # Línea anterior vacía = posible transición
+                    stripped and
+                    not line.startswith(' ') and  # Sin indentación
+                    not line.startswith('\t') and
+                    not line.startswith('#') and  # No empieza con # (podría ser comentario)
+                    stripped[0].isupper() and  # Empieza con mayúscula
+                    len(stripped.split()) > 10 and  # Más de 10 palabras = muy probablemente texto
+                    not any(sym in stripped for sym in ['()', '{}', '[]', '==', '!=', '->', '::', '**', '//', '+=', '-=', '= ', ': ']) and
+                    not any(kw in stripped for kw in ['def ', 'class ', 'import ', 'from ', 'return ', 'if ', 'elif ', 'else:', 'for ', 'while ', 'try:', 'except ', 'raise ', 'with ', 'self.', 'print('])
+                )
+                
+                if is_markdown_header or is_narrative_paragraph:
+                    # Cerrar el bloque ANTES de esta línea
+                    result_lines.append('```')
+                    in_code_block = False
+                    fixes_applied += 1
+                    
+                    # Si el bloque no tenía lenguaje, inferirlo
+                    if not code_block_lang and code_block_start >= 0:
+                        code_lines_to_check = result_lines[code_block_start + 1:-1]  # Excluir cierre
+                        detected_lang = detect_language(code_lines_to_check)
+                        result_lines[code_block_start] = f'```{detected_lang}'
+                    
+                    code_block_lang = None
+                    code_block_start = -1
+            
+            result_lines.append(line)
+        
+        i += 1
+    
+    # Verificar si quedó un bloque sin cerrar
+    if in_code_block:
+        result_lines.append('```')
+        fixes_applied += 1
+        
+        # Si el bloque no tenía lenguaje, inferirlo
+        if not code_block_lang and code_block_start >= 0:
+            code_lines_to_check = result_lines[code_block_start + 1:]
+            detected_lang = detect_language(code_lines_to_check)
+            result_lines[code_block_start] = f'```{detected_lang}'
+        
+        print(f"⚠️  Bloque de código sin cerrar detectado y corregido")
+    
+    if fixes_applied > 0:
+        print(f"✅ {fixes_applied} bloques de código normalizados")
+    
+    return '\n'.join(result_lines)
 
 
 def add_source_links_to_article(article_text, context_sources):
