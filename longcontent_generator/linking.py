@@ -462,7 +462,11 @@ def auto_link_article(
     
     # 7. Normalizar TODOS los links externos (nuevos y existentes)
     print(f"\n🔧 Normalizando todos los links externos...")
-    linked_article = normalize_external_links(linked_article)
+    linked_article, normalize_stats = normalize_external_links(linked_article)
+    
+    if normalize_stats['html_links_fixed'] > 0 or normalize_stats['markdown_links_converted'] > 0:
+        print(f"   ✅ Links HTML normalizados: {normalize_stats['html_links_fixed']}")
+        print(f"   ✅ Links Markdown convertidos: {normalize_stats['markdown_links_converted']}")
     
     # Actualizar longitud final después de normalización
     final_length = len(linked_article)
