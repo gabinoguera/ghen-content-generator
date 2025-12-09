@@ -96,3 +96,6 @@ test_outputs/
 # Logs
 *.log
 logs/
+
+# Streamlit secrets
+secrets.toml
